@@ -1,0 +1,235 @@
+import { FormEventHandler, useState } from 'react';
+import { LoaderCircle, Eye, EyeOff } from 'lucide-react';
+import { Head, useForm, Link } from '@inertiajs/react'; // Tambahkan Link jika belum ada atau pastikan ada
+import { FcGoogle } from 'react-icons/fc'; // Import ikon Google
+
+import Input from '@/components/elements/input';
+// Label sepertinya tidak digunakan di kode yang Anda berikan, tapi jika perlu, pastikan importnya ada
+// import Label from '@/components/elements/label';
+import { Button } from '@/components/elements/button';
+import InputError from '@/components/elements/input-error';
+
+type RegisterForm = {
+  username: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+};
+
+export default function Register() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { data, setData, post, processing, errors, reset } =
+    useForm<Required<RegisterForm>>({
+      username: '',
+      email: '',
+      password: '',
+      password_confirmation: '',
+    });
+
+  const submit: FormEventHandler = (e) => {
+    e.preventDefault();
+    post(route('register'), { // route('register') untuk form registrasi standar
+      onFinish: () => reset('password', 'password_confirmation'),
+      onError: (e) => console.log(e)
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-white p-4 flex flex-col">
+          <div className="mt-4 flex justify-center md:justify-start">
+                <img
+                    src="RB-Store1.png" // Pastikan path ini benar
+                    alt="RB Store Logo" // Alt text yang lebih deskriptif
+                    className="rounded-lg w-25 h-auto mb-6"
+                />
+              </div>
+          <div className="flex-grow flex flex-col md:flex-row border border-gray-200 rounded-t-7xl overflow-hidden">
+
+            <div className="bg-white md:w-2/3 flex flex-col p-8 justify-center">
+              <div className="w-full px-2 md:px-12">
+                <p className="text-[#51793E] text-sm md:text-1xl font-semibold mb-1 md:mb-4 leading-relaxed">
+                  Pesan aneka kue tradisional, kudapan siap saji dan penawaran spesial lainya!
+                </p>
+                <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-1 leading-tight">
+                  Cita Rasa Nusantara,
+                </h2>
+                <h3 className="text-[#51793E] text-3xl md:text-5xl font-bold leading-tight">
+                  Tradisi dalam <br></br> Genggaman
+                </h3>
+                <div className="relative -mt-25 md:-mt-35 flex justify-center md:justify-end md:-mr-4 z-20">
+                <img
+                    src="/img/klepon.png" // Pastikan path ini benar
+                    alt="Klepon - Traditional Indonesian dessert"
+                    className="rounded-lg max-w-[550px] md:max-w-[620px] h-auto drop-shadow-2xl"
+                />
+                </div>
+              </div>
+            </div>
+
+            {/* Bagian kanan dengan form registrasi */}
+            <div className="bg-[#51793E] md:w-1/2 flex items-center justify-center p-6 relative overflow-hidden rounded-l-[100px]">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                <Head title="Sign Up" /> {/* Ganti title menjadi Sign Up */}
+
+                <div className="mb-6">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-6">Sign up</h2>
+                    </div>
+
+                <form className="flex flex-col gap-4" onSubmit={submit}>
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                      Username
+                    </label>
+                    <Input id="username"
+                      type="text"
+                      className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      placeholder="Username"
+                      required
+                      tabIndex={1} // Update tabIndex jika diperlukan
+                      value={data.username}
+                      onChange={(e) => setData('username', e.target.value)}
+                      disabled={processing}
+                      autoComplete="username"
+                    />
+                    <InputError message={errors.username} className="mt-2" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="email@example.com" // Ganti placeholder jika perlu
+                      className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      required
+                      tabIndex={2} // Update tabIndex
+                      value={data.email}
+                      onChange={(e) => setData('email', e.target.value)}
+                      autoComplete="email"
+                      disabled={processing}
+                    />
+                    <InputError message={errors.email} className="mt-2" /> {/* Tambah className mt-2 jika perlu */}
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••••••"
+                        className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                        required
+                        tabIndex={3} // Update tabIndex
+                        value={data.password}
+                        onChange={(e) => setData('password', e.target.value)}
+                        autoComplete="new-password"
+                        disabled={processing}
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    <InputError message={errors.password} className="mt-2" /> {/* Tambah className mt-2 jika perlu */}
+                  </div>
+
+                  <div>
+                    <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 mb-1">
+                      Konfirmasi Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id="password_confirmation"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••••••"
+                        className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                        required
+                        tabIndex={4} // Update tabIndex
+                        value={data.password_confirmation}
+                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                        autoComplete="new-password"
+                        disabled={processing}
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    <InputError message={errors.password_confirmation} className="mt-2" /> {/* Tambah className mt-2 jika perlu */}
+                  </div>
+
+                  <div className="flex justify-center mt-2"> {/* Ganti items-center ke justify-center jika ingin tombol di tengah */}
+                    <Button
+                      type="submit"
+                      className="bg-[#51793E] hover:bg-[#3f5d31] text-white flex items-center justify-center py-2 px-6 rounded-md w-full" // Tambahkan w-full
+                      disabled={processing}
+                      tabIndex={5} // Update tabIndex
+                    >
+                      {processing ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <>
+                          SIGN UP
+                          <svg className="ml-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+
+                {/* Pembatas "OR" */}
+                <div className="my-6 flex items-center">
+                    <div className="flex-grow border-t border-gray-300"></div>
+                    <span className="mx-4 flex-shrink text-sm text-gray-500">OR</span>
+                    <div className="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                {/* Tombol Sign Up dengan Google */}
+                <a // Gunakan tag 'a' untuk mengarahkan ke rute backend
+                    href={route('login.google.redirect')} // Arahkan ke rute redirect Google yang sama
+                    className="w-full flex items-center justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#51793E]"
+                    tabIndex={6} // Update tabIndex
+                >
+                    <FcGoogle className="h-5 w-5 mr-3" />
+                    Sign up with Google {/* Ubah teksnya menjadi "Sign up with Google" */}
+                </a>
+
+                <div className="text-center text-gray-500 text-sm mt-6"> {/* Tambah margin atas */}
+                  I already have an account?{' '}
+                  <Link // Gunakan Link dari Inertia
+                    href={route('login')}
+                    className="text-[#51793E] hover:underline font-medium"
+                    tabIndex={7} // Update tabIndex
+                  >
+                    Sign in
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }

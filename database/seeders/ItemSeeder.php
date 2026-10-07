@@ -5,10 +5,8 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class ItemSeeder extends Seeder
-{
-    public function run(): void
-    {
+class ItemSeeder extends Seeder {
+    public function run(): void {
         $items = [
             [
                 'name' => 'Dadar Gulung',
@@ -16,6 +14,7 @@ class ItemSeeder extends Seeder
                 'price' => 3000,
                 'image_url' => '/img/dadar-gulung.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kue Cucur',
@@ -23,6 +22,7 @@ class ItemSeeder extends Seeder
                 'price' => 2000,
                 'image_url' => '/img/cucur.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Koci-Koci',
@@ -30,6 +30,7 @@ class ItemSeeder extends Seeder
                 'price' => 2000,
                 'image_url' => '/img/koci-koci.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Klepon',
@@ -37,6 +38,7 @@ class ItemSeeder extends Seeder
                 'price' => 5000,
                 'image_url' => '/img/categories/kue-basah.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kue Lumpur',
@@ -44,6 +46,7 @@ class ItemSeeder extends Seeder
                 'price' => 2500,
                 'image_url' => '/img/kue-lumpur.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Bikang Manis',
@@ -51,6 +54,7 @@ class ItemSeeder extends Seeder
                 'price' => 2000,
                 'image_url' => '/img/bikang-manis.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kue Putu',
@@ -58,6 +62,7 @@ class ItemSeeder extends Seeder
                 'price' => 2000,
                 'image_url' => '/img/kue-putu.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Lemper Ayam',
@@ -65,6 +70,7 @@ class ItemSeeder extends Seeder
                 'price' => 3000,
                 'image_url' => '/img/lemper-ayam.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kue Nagasari',
@@ -72,6 +78,7 @@ class ItemSeeder extends Seeder
                 'price' => 2500,
                 'image_url' => '/img/kue-nagasari.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kue Lapis',
@@ -79,6 +86,7 @@ class ItemSeeder extends Seeder
                 'price' => 2000,
                 'image_url' => '/img/kue-lapis.png',
                 'category_slug' => 'kue-basah',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Semprong renyah',
@@ -86,6 +94,7 @@ class ItemSeeder extends Seeder
                 'price' => 50000,
                 'image_url' => '/img/semprong-renyah.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Pastel kering',
@@ -93,6 +102,7 @@ class ItemSeeder extends Seeder
                 'price' => 50000,
                 'image_url' => '/img/pastel-kering.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Seroja/Kembang Goyang',
@@ -100,6 +110,7 @@ class ItemSeeder extends Seeder
                 'price' => 50000,
                 'image_url' => '/img/seroja.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Telur Gabus',
@@ -107,6 +118,7 @@ class ItemSeeder extends Seeder
                 'price' => 50000,
                 'image_url' => '/img/telur-gabus.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Onde-onde Ketawa',
@@ -114,6 +126,7 @@ class ItemSeeder extends Seeder
                 'price' => 50000,
                 'image_url' => '/img/onde-onde-ketawa.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kuping Gajah',
@@ -121,6 +134,7 @@ class ItemSeeder extends Seeder
                 'price' => 50000,
                 'image_url' => '/img/kuping-gajah.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Kacang Sembunyi',
@@ -128,6 +142,7 @@ class ItemSeeder extends Seeder
                 'price' => 45000,
                 'image_url' => '/img/kacang-sembunyi.png',
                 'category_slug' => 'kue-kering',
+                'expired_at' => '2026-10-14',
             ],
             [
                 'name' => 'Keripik Tempe',

@@ -21,7 +21,7 @@ return new class extends Migration {
             $table->boolean('is_available')->default(true); // Toggle for visibility
             $table->longText('description')->nullable();
             $table->float('discount')->default(0);
-            $table->date('expired_at');
+            $table->date('expired_at')->nullable();
 
             $table->timestamps();
         });

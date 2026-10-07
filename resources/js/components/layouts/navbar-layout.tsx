@@ -91,7 +91,7 @@ export default function NavbarLayout({ className = "", user: initialUser = null 
               <Link href={route('profile.show')} className="hover:underline"> {/* Diubah */}
                 Halo, {user.username}
               </Link>
-              {/* <button onClick={handleLogout} className="ml-4 underline">Logout</button> */}
+              <Link href={route('logout')} method="post" as="button" className="ml-4 underline hover:text-gray-300 transition">Logout</Link>
             </>
           )}
         </div>

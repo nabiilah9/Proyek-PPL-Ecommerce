@@ -108,7 +108,7 @@ export default function Login({ status, canResetPassword, errors: pageErrors }: 
                                 id="email"
                                 type="email"
                                 placeholder="test@gmail.com" //
-                                className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50" //
+                                className="w-full text-black bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50" //
                                 required
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
@@ -125,7 +125,7 @@ export default function Login({ status, canResetPassword, errors: pageErrors }: 
                                 id="username"
                                 type="text"
                                 placeholder="Username" //
-                                className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50" //
+                                className="w-full text-black bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50" //
                                 required
                                 value={data.username}
                                 onChange={(e) => setData('username', e.target.value)}
@@ -153,7 +153,7 @@ export default function Login({ status, canResetPassword, errors: pageErrors }: 
                                     id="password"
                                     type={showPassword ? "text" : "password"}
                                     placeholder="••••••••••••" //
-                                    className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50" //
+                                    className="w-full text-black bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50" //
                                     required
                                     value={data.password}
                                     onChange={(e) => setData('password', e.target.value)}

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Client\CartController;
 use App\Http\Controllers\Client\ProfileControllerClient;
+use App\Models\Item;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -24,7 +25,7 @@ use Inertia\Inertia;
 */
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    return redirect()->route('login');
 })->name('landing.page');
 
 
@@ -43,7 +44,14 @@ Route::get('/order', function () {
 });
 
 Route::get('/Homepage', function () {
-    return Inertia::render('Homepage');
+    $items = Item::with('category')
+        ->where('is_available', true)
+        ->where('stock', '>', 0)
+        ->get();
+
+    return Inertia::render('Homepage', [
+        'items' => $items,
+    ]);
 })->name('Homepage');
 
 Route::get('/Delivery', function () {

@@ -3,18 +3,36 @@ import Main from "@/components/layouts/main";
 import CustomerReview from "@/components/layouts/review";
 import AppTemplate from "@/components/templates/app-template";
 import { Link } from "@inertiajs/react";
-// import { GoogleMap } from "@react-google-maps/api";
 
-// type MenuProps = {
-//   User: User[],
-// }
+export interface Item {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  unit: string;
+  stock: number;
+  image_url: string;
+  discount: number;
+  is_available: boolean;
+  category?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+}
 
-const Menu = () => {
+interface HomepageProps {
+  items: Item[];
+}
+
+const Homepage = ({ items }: HomepageProps) => {
   return (
     <AppTemplate className="bg-[#FFFFFF]">
       <Jumbotron />
       <form className="mx-16 mt-4">
-        <input type="text" placeholder="Search For Menu.."
+        <input
+          type="text"
+          placeholder="Search For Menu.."
           className="w-full rounded-full p-3 border"
         />
       </form>
@@ -44,20 +62,12 @@ const Menu = () => {
         <div id="nav" className="mt-10 flex items-center justify-between">
           <h1 className="text-3xl font-bold">Up to -40%🎊RB Store exclusive deals</h1>
           <div className="flex items-center">
-              <Link href="#" className="px-13">
-                Gorengan
-              </Link>
-              <Link href="#" className="px-13">
-                Kue Kering
-              </Link>
-              <Link href="#" className="rounded-4xl border border-green-300 px-13 py-2">
-                Kue Basah
-              </Link>
-              <Link href="#" className="px-13">
-                others
-              </Link>
-            </div>
+            <Link href="#" className="px-13">Gorengan</Link>
+            <Link href="#" className="px-13">Kue Kering</Link>
+            <Link href="#" className="rounded-4xl border border-green-300 px-13 py-2">Kue Basah</Link>
+            <Link href="#" className="px-13">others</Link>
           </div>
+        </div>
 
         <div className="mt-6 flex gap-2.5 overflow-auto">
           <div className="relative h-60 w-full rounded-2xl bg-[url('/img/dadar-gulung.png')] bg-cover bg-center">
@@ -83,19 +93,13 @@ const Menu = () => {
           </div>
         </div>
       </div>
-      <Main />
-      {/* <GoogleMap
-        onLoad={(map) => {
-          const bounds = new window.google.maps.LatLngBounds()
-          map.fitBounds(bounds)
-        }}
-        onUnmount={(map) => {
-          // do your stuff before map is unmounted
-        }}
-      /> */}
+
+      {/* Menu dari database */}
+      <Main items={items} />
+
       <CustomerReview />
     </AppTemplate>
   );
 };
 
-export default Menu;
+export default Homepage;

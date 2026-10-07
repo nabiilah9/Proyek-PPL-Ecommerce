@@ -6,24 +6,66 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Transaction extends Model {
+class Transaction extends Model
+{
     use HasFactory;
-
-    // protected $with = ['user', 'items'];
-
-    public function user(): BelongsTo { // M:1
-        return $this->belongsTo(User::class, 'client_id', 'id');
-    }
-
-    public function items(): BelongsToMany { // M:N
-        return $this->belongsToMany(Item::class, 'transaction_details')
-                    ->withPivot('qty', 'price_at_time')
-                    ->withTimestamps();
-    }
 
     protected $fillable = [
         'client_id',
-        'total', 'note', 'payment_method', 'status'
+        'total',
+        'note',
+        'payment_method',
+        'status',
     ];
+
+    /**
+     * User / Client yang melakukan transaksi
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'client_id',
+            'id'
+        );
+    }
+
+    /**
+     * Detail transaksi
+     *
+     * transactions
+     *      ↓
+     * transaction_details
+     */
+    public function details(): HasMany
+    {
+        return $this->hasMany(
+            TransactionDetail::class,
+            'transaction_id',
+            'id'
+        );
+    }
+
+    /**
+     * Produk yang ada di transaksi
+     *
+     * Relasi ini tetap dipertahankan
+     * untuk kebutuhan lain.
+     */
+    public function items(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Item::class,
+            'transaction_details',
+            'transaction_id',
+            'item_id'
+        )
+        ->withPivot(
+            'quantity',
+            'price_at_time'
+        )
+        ->withTimestamps();
+    }
 }

@@ -11,17 +11,28 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Client\CartController;
 use App\Http\Controllers\Client\ProfileControllerClient;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-
 use Inertia\Inertia;
 
-Route::get('/', function () { // routes
-    return Inertia::render('welcome'); // file name
-})->name('landing page'); // name for pages
 
-Route::get('/menu', function () {
-    return Inertia::render('menu');
-})->name('menu');
+/*
+|--------------------------------------------------------------------------
+| HALAMAN UTAMA
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/', function () {
+    return Inertia::render('welcome');
+})->name('landing.page');
+
+
+/*
+|--------------------------------------------------------------------------
+| HALAMAN UMUM
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/offers', function () {
     return Inertia::render('offers');
@@ -30,88 +41,316 @@ Route::get('/offers', function () {
 Route::get('/order', function () {
     return Inertia::render('order');
 });
+
 Route::get('/Homepage', function () {
     return Inertia::render('Homepage');
 })->name('Homepage');
+
 Route::get('/Delivery', function () {
     return Inertia::render('Delivery');
-})->name('Delivery');
-
-
-Route::get('/pesanan-saya', function () {
-    return Inertia::render('PesananSaya', [
-        'user' => ['name' => 'Seinal Arifin'],
-        'cartItems' => ['count' => 23, 'total' => 100000],
-    ]);
 });
 
-// kategori-database
-// Controller
-Route::get('/menu', [CategoryController::class, 'index']);
-Route::get('/menu/{slug}', [CategoryController::class, 'show']);
+
+/*
+|--------------------------------------------------------------------------
+| MENU / PRODUK
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/menu', [
+    CategoryController::class,
+    'index'
+]);
+
+Route::get('/menu/{slug}', [
+    CategoryController::class,
+    'show'
+]);
 
 
-// // Closure
-// Route::get('/menu', function () {
-//     $categories = Category::all();
-//     return Inertia::render('clients/menu', [
-//         'categories' => $categories
-//     ]);
-// });
-// Route::get('/menu/{slug}', function ($slug) {
-//     $category = Category::where('slug', $slug)->firstOrFail();
-//     $items = $category->items()->where('is_available', true)->get();
+/*
+|--------------------------------------------------------------------------
+| PESANAN SAYA
+|--------------------------------------------------------------------------
+*/
 
-//     return Inertia::render('clients/kategori', [
-//         'kategori' => $category->name,
-//         'produk' => $items
-//     ]);
-// });
+Route::middleware(['auth'])->group(function () {
+
+    Route::get('/pesanan-saya', function () {
+
+        $transactions = Transaction::with([
+            'details.item'
+        ])
+            ->where('client_id', Auth::id())
+            ->latest()
+            ->get();
+
+        return Inertia::render('PesananSaya', [
+            'transactions' => $transactions,
+            'user' => Auth::user(),
+        ]);
+
+    })->name('pesanan.saya');
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| USER YANG SUDAH LOGIN
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::prefix('admin')->group(function () {
-        Route::get('/', function () {
-            return Inertia::render('admins/dashboard');
-        })->name('dashboard');
-        Route::resource('users', AdminUserController::class);
-        Route::resource('contacts', AdminContactController::class);
-        Route::resource('address', AdminAddressController::class);
-        // Route::resource('feedbacks', AdminFeedbackController::class);
-        Route::resource('transactions', AdminTransactionController::class);
-        Route::resource('categories', AdminCategoryController::class);
-        Route::resource('items', AdminItemController::class);
-        Route::resource('ratings', AdminRatingController::class);
-        Route::resource('details', AdminTransactionDetailController::class);
-    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER HOME
+    |--------------------------------------------------------------------------
+    */
 
     Route::prefix('user')->group(function () {
+
         Route::get('/', function () {
-            return Inertia::render('clients/welcome');
+
+            return Inertia::render(
+                'clients/welcome'
+            );
+
         })->name('home');
+
     });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PROFILE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/profile', [
+        ProfileControllerClient::class,
+        'show'
+    ])->name('profile.show');
+
+    Route::post('/profile', [
+        ProfileControllerClient::class,
+        'update'
+    ])->name('profile.update');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLIENT / CART / CHECKOUT
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('client')
+        ->name('client.')
+        ->group(function () {
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CART
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get('/cart', [
+                CartController::class,
+                'index'
+            ])->name('cart.index');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TAMBAH KE CART
+            |--------------------------------------------------------------------------
+            */
+
+            Route::post('/cart/add', [
+                CartController::class,
+                'addToCart'
+            ])->name('cart.add');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE CART
+            |--------------------------------------------------------------------------
+            */
+
+            Route::patch('/cart/update', [
+                CartController::class,
+                'updateCart'
+            ])->name('cart.update');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HAPUS CART
+            |--------------------------------------------------------------------------
+            */
+
+            Route::delete('/cart/remove', [
+                CartController::class,
+                'removeFromCart'
+            ])->name('cart.remove');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHECKOUT
+            |--------------------------------------------------------------------------
+            */
+
+            Route::post('/cart/checkout', [
+                CartController::class,
+                'checkout'
+            ])->name('cart.checkout');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CART COUNT
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get('/cart/count', [
+                CartController::class,
+                'getCartCount'
+            ])->name('cart.count');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ORDER CONFIRMATION
+            |--------------------------------------------------------------------------
+            |
+            | Setelah checkout berhasil:
+            |
+            | /client/cart
+            |       ↓
+            | POST /client/cart/checkout
+            |       ↓
+            | CartController@checkout
+            |       ↓
+            | /client/orders/{transaction}
+            |
+            */
+
+            Route::get('/orders/{transaction}', function ($transaction) {
+
+                return Inertia::render(
+                    'Client/OrderConfirmation',
+                    [
+                        'transactionId' => (int) $transaction,
+                    ]
+                );
+
+            })->name('orders.show');
+
+        });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADMIN
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('admin')->group(function () {
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DASHBOARD
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/', function () {
+
+            return Inertia::render(
+                'admins/dashboard'
+            );
+
+        })->name('dashboard');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CRUD ADMIN
+        |--------------------------------------------------------------------------
+        */
+
+        Route::resource(
+            'users',
+            AdminUserController::class
+        );
+
+        Route::resource(
+            'contacts',
+            AdminContactController::class
+        );
+
+        Route::resource(
+            'address',
+            AdminAddressController::class
+        );
+
+        Route::resource(
+            'transactions',
+            AdminTransactionController::class
+        );
+
+        Route::resource(
+            'categories',
+            AdminCategoryController::class
+        );
+
+        Route::resource(
+            'items',
+            AdminItemController::class
+        );
+
+        Route::resource(
+            'ratings',
+            AdminRatingController::class
+        );
+
+        Route::resource(
+            'details',
+            AdminTransactionDetailController::class
+        );
+
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | COURIER
+    |--------------------------------------------------------------------------
+    */
 
     Route::prefix('courier')->group(function () {
+
         Route::get('/', function () {
-            echo "Ini halaman kurir ya cantik!";
+
+            return response()->view('welcome');
+
         });
-    });
-    Route::middleware(['auth'])->group(function () {
-        Route::get('/profile', [ProfileControllerClient::class, 'show'])->name('profile.show');
-        Route::post('/profile', [ProfileControllerClient::class, 'update'])->name('profile.update');
+
     });
 
-    Route::group(['as' => 'client.', 'prefix' => 'client'], function () {
-        Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-        Route::post('/cart/add', [CartController::class, 'addToCart'])->name('cart.add');
-        Route::patch('/cart/update', [CartController::class, 'updateCart'])->name('cart.update');
-        Route::delete('/cart/remove', [CartController::class, 'removeFromCart'])->name('cart.remove');
-        Route::post('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');
-        Route::get('/cart/count', [CartController::class, 'getCartCount'])->name('cart.count');
-        Route::get('/orders/{transaction}', function ($transaction) {
-            return Inertia::render('Client/OrderConfirmation', ['transactionId' => $transaction]);
-        })->name('orders.show');
-    });
 });
+
+
+/*
+|--------------------------------------------------------------------------
+| SETTINGS & AUTH
+|--------------------------------------------------------------------------
+*/
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

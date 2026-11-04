@@ -1,9 +1,8 @@
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler } from 'react';
 import { LoaderCircle, Calendar, User, Phone, Home, MapPin, Globe, Building } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
 
 import Input from '@/components/elements/input';
-import Label from '@/components/elements/label';
 import { Button } from '@/components/elements/button';
 import InputError from '@/components/elements/input-error';
 
@@ -22,7 +21,7 @@ type ProfileForm = {
 };
 
 export default function CompleteProfile() {
-  const { data, setData, post, processing, errors, reset } =
+  const { data, setData, post, processing, errors } =
   useForm<ProfileForm>({
     name: '',
     phone: '',

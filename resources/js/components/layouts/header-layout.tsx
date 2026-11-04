@@ -3,7 +3,8 @@ import { Link } from "@inertiajs/react";
 import { MapPin } from "lucide-react";
 import axios from 'axios';
 
-declare function route(name: string, params?: Record<string, any>): string;
+declare function route(name: string, params?: Record<string, unknown>): string;
+
 
 type HeaderLayoutProps = {
   className?: string;

@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\Admin\AdminAddressController;
@@ -11,12 +12,14 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Client\CartController;
 use App\Http\Controllers\Client\ProfileControllerClient;
+use App\Http\Controllers\Client\PaymentController;
+use App\Http\Controllers\MidtransNotificationController;
+use App\Services\MidtransService;
 use App\Models\Item;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
 
 /*
 |--------------------------------------------------------------------------
@@ -27,7 +30,6 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return redirect()->route('login');
 })->name('landing.page');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -58,7 +60,6 @@ Route::get('/Delivery', function () {
     return Inertia::render('Delivery');
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | MENU / PRODUK
@@ -68,7 +69,6 @@ Route::get('/Delivery', function () {
 Route::get('/menu', [CategoryController::class, 'index']);
 Route::get('/menu/{slug}', [CategoryController::class, 'show']);
 
-
 /*
 |--------------------------------------------------------------------------
 | PESANAN SAYA
@@ -76,12 +76,15 @@ Route::get('/menu/{slug}', [CategoryController::class, 'show']);
 */
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/pesanan-saya', function (MidtransService $midtrans) {
+        Transaction::where('client_id', Auth::id())
+            ->where('status', 'pending')
+            ->whereIn('payment_method', ['bank', 'e-wallet'])
+            ->whereNotNull('midtrans_order_id')
+            ->get()
+            ->each(fn(Transaction $transaction) => $midtrans->refreshStatus($transaction));
 
-    Route::get('/pesanan-saya', function () {
-
-        $transactions = Transaction::with([
-            'details.item'
-        ])
+        $transactions = Transaction::with(['details.item'])
             ->where('client_id', Auth::id())
             ->latest()
             ->get();
@@ -90,10 +93,19 @@ Route::middleware(['auth'])->group(function () {
             'transactions' => $transactions,
             'user' => Auth::user(),
         ]);
-
     })->name('pesanan.saya');
-
 });
+
+/*
+|--------------------------------------------------------------------------
+| WEBHOOK MIDTRANS (tanpa auth, dipanggil server Midtrans)
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/midtrans/notification', [
+    MidtransNotificationController::class,
+    'handle',
+])->name('midtrans.notification');
 
 
 /*
@@ -104,7 +116,6 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-
     /*
     |--------------------------------------------------------------------------
     | USER HOME
@@ -112,17 +123,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('user')->group(function () {
-
         Route::get('/', function () {
-
-            return Inertia::render(
-                'clients/welcome'
-            );
-
+            return Inertia::render('clients/welcome');
         })->name('home');
-
     });
-
 
     /*
     |--------------------------------------------------------------------------
@@ -132,14 +136,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/profile', [
         ProfileControllerClient::class,
-        'show'
+        'show',
     ])->name('profile.show');
 
     Route::post('/profile', [
         ProfileControllerClient::class,
-        'update'
+        'update',
     ])->name('profile.update');
-
 
     /*
     |--------------------------------------------------------------------------
@@ -151,109 +154,70 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('client.')
         ->group(function () {
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | CART
-            |--------------------------------------------------------------------------
-            */
-
+            // CART
             Route::get('/cart', [
                 CartController::class,
-                'index'
+                'index',
             ])->name('cart.index');
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | TAMBAH KE CART
-            |--------------------------------------------------------------------------
-            */
-
+            // TAMBAH KE CART
             Route::post('/cart/add', [
                 CartController::class,
-                'addToCart'
+                'addToCart',
             ])->name('cart.add');
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE CART
-            |--------------------------------------------------------------------------
-            */
-
+            // UPDATE CART
             Route::patch('/cart/update', [
                 CartController::class,
-                'updateCart'
+                'updateCart',
             ])->name('cart.update');
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | HAPUS CART
-            |--------------------------------------------------------------------------
-            */
-
+            // HAPUS CART
             Route::delete('/cart/remove', [
                 CartController::class,
-                'removeFromCart'
+                'removeFromCart',
             ])->name('cart.remove');
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | CHECKOUT
-            |--------------------------------------------------------------------------
-            */
-
+            // CHECKOUT
             Route::post('/cart/checkout', [
                 CartController::class,
-                'checkout'
+                'checkout',
             ])->name('cart.checkout');
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | CART COUNT
-            |--------------------------------------------------------------------------
-            */
-
+            // JUMLAH ITEM CART
             Route::get('/cart/count', [
                 CartController::class,
-                'getCartCount'
+                'getCartCount',
             ])->name('cart.count');
-
 
             /*
             |--------------------------------------------------------------------------
-            | ORDER CONFIRMATION
+            | KONFIRMASI PESANAN
             |--------------------------------------------------------------------------
-            |
-            | Setelah checkout berhasil:
-            |
-            | /client/cart
-            |       ↓
-            | POST /client/cart/checkout
-            |       ↓
-            | CartController@checkout
-            |       ↓
-            | /client/orders/{transaction}
-            |
+            | URL: /client/orders/{transaction}
+            | File: resources/js/pages/clients/OrderConfirmation.tsx
             */
+            Route::post('/orders/{transaction}/cancel', [PaymentController::class, 'cancel'])
+                ->name('orders.cancel');
 
-            Route::get('/orders/{transaction}', function ($transaction) {
+            Route::post('/orders/{transaction}/pay', [PaymentController::class, 'token'])
+                ->name('orders.pay');
+            Route::get('/orders/{transaction}', function (
+                Transaction $transaction,
+                MidtransService $midtrans,
+            ) {
+                abort_unless($transaction->client_id === Auth::id(), 403);
 
-                return Inertia::render(
-                    'Client/OrderConfirmation',
-                    [
-                        'transactionId' => (int) $transaction,
-                    ]
-                );
+                $transaction = $midtrans->refreshStatus($transaction);
 
+                return Inertia::render('clients/OrderConfirmation', [
+                    'transactionId' => $transaction->id,
+                    'status'        => $transaction->status,
+                    'paymentMethod' => $transaction->payment_method,
+                    'total'         => $transaction->total,
+                ]);
             })->name('orders.show');
-
         });
-
 
     /*
     |--------------------------------------------------------------------------
@@ -263,70 +227,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('admin')->group(function () {
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | DASHBOARD
-        |--------------------------------------------------------------------------
-        */
-
         Route::get('/', function () {
-
-            return Inertia::render(
-                'admins/dashboard'
-            );
-
+            return Inertia::render('admins/dashboard');
         })->name('dashboard');
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | CRUD ADMIN
-        |--------------------------------------------------------------------------
-        */
-
-        Route::resource(
-            'users',
-            AdminUserController::class
-        );
-
-        Route::resource(
-            'contacts',
-            AdminContactController::class
-        );
-
-        Route::resource(
-            'address',
-            AdminAddressController::class
-        );
-
-        Route::resource(
-            'transactions',
-            AdminTransactionController::class
-        );
-
-        Route::resource(
-            'categories',
-            AdminCategoryController::class
-        );
-
-        Route::resource(
-            'items',
-            AdminItemController::class
-        );
-
-        Route::resource(
-            'ratings',
-            AdminRatingController::class
-        );
-
-        Route::resource(
-            'details',
-            AdminTransactionDetailController::class
-        );
-
+        Route::resource('users', AdminUserController::class);
+        Route::resource('contacts', AdminContactController::class);
+        Route::resource('address', AdminAddressController::class);
+        Route::resource('transactions', AdminTransactionController::class);
+        Route::resource('categories', AdminCategoryController::class);
+        Route::resource('items', AdminItemController::class);
+        Route::resource('ratings', AdminRatingController::class);
+        Route::resource('details', AdminTransactionDetailController::class);
     });
-
 
     /*
     |--------------------------------------------------------------------------
@@ -335,17 +248,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('courier')->group(function () {
-
         Route::get('/', function () {
-
             return response()->view('welcome');
-
         });
-
     });
-
 });
-
 
 /*
 |--------------------------------------------------------------------------

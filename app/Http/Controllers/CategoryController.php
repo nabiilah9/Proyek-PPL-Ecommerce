@@ -11,9 +11,17 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $categories = Category::all();
+        $categories = Category::orderBy('name')->get();
+
         $search = trim((string) $request->query('search', ''));
 
+        // Katalog seluruh produk yang tersedia.
+        $produk = Item::query()
+            ->where('is_available', true)
+            ->where('stock', '>', 0)
+            ->get();
+
+        // Hasil pencarian.
         $products = [];
 
         if ($search !== '') {
@@ -29,6 +37,7 @@ class CategoryController extends Controller
 
         return Inertia::render('clients/menu', [
             'categories' => $categories,
+            'produk' => $produk,
             'products' => $products,
             'search' => $search,
         ]);
@@ -38,18 +47,18 @@ class CategoryController extends Controller
     {
         $category = Category::where('slug', $slug)->firstOrFail();
 
-        $items = $category->items()
+        $categories = Category::orderBy('name')->get();
+
+        $produk = $category->items()
             ->where('is_available', true)
             ->where('stock', '>', 0)
             ->get();
 
-        $categories = Category::all();
-
         return Inertia::render('clients/kategori', [
             'kategori' => $category->name,
             'slug' => $category->slug,
-            'produk' => $items,
             'categories' => $categories,
+            'produk' => $produk,
         ]);
     }
 }

@@ -1,6 +1,6 @@
 import FigureCap from '../fragments/figcap';
 import NavbarTemplate from '../navbar-template';
-import { Link, router, usePage } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { useState, useEffect } from 'react';
 
 // Tipe user
@@ -30,9 +30,6 @@ export default function NavbarLayout({ className = "", user: initialUser = null 
     setUser(initialUser);
   }, [initialUser]);
 
-  const handleLogout = () => {
-    router.post('/logout');
-  };
 
   return (
     <section aria-label="navigation" className={`flex justify-between items-center ${className}`}>

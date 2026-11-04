@@ -66,15 +66,8 @@ Route::get('/Delivery', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/menu', [
-    CategoryController::class,
-    'index',
-]);
-
-Route::get('/menu/{slug}', [
-    CategoryController::class,
-    'show',
-]);
+Route::get('/menu', [CategoryController::class, 'index']);
+Route::get('/menu/{slug}', [CategoryController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -112,7 +105,7 @@ Route::middleware(['auth'])->group(function () {
 Route::post('/midtrans/notification', [
     MidtransNotificationController::class,
     'handle',
-]);
+])->name('midtrans.notification');
 
 
 /*
@@ -207,8 +200,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/orders/{transaction}/cancel', [PaymentController::class, 'cancel'])
                 ->name('orders.cancel');
 
-            Route::post('/orders/{transaction}/pay', [PaymentController::class, 'token']);
-
+            Route::post('/orders/{transaction}/pay', [PaymentController::class, 'token'])
+                ->name('orders.pay');
             Route::get('/orders/{transaction}', function (
                 Transaction $transaction,
                 MidtransService $midtrans,

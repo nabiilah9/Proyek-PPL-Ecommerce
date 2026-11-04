@@ -67,9 +67,9 @@ class UserFactory extends Factory
 
     public function edho(): static {
         return $this->state(fn (array $attributes) => [
-            'username' => "ACHMAD RIDHO FA'IZ",
-            'email' => '230411100197@student.trunojoyo.ac.id',
-            'password' => Hash::make('Edho123'),
+            'username' => "superadmin",
+            'email' => 'superadmin@gmail.com',
+            'password' => Hash::make('admin123'),
             // 'role' => 'ADMIN',
             'avatar' => null,
             'status' => 'active',
@@ -95,6 +95,18 @@ class UserFactory extends Factory
             'email' => '230411100068@student.trunojoyo.ac.id',
             'password' => Hash::make('admin123'),
             'role' => 'ADMIN',
+            'avatar' => null,
+            'status' => 'active',
+            'email_verified_at' => now(),
+            'remember_token' => Str::random(10),
+        ]);
+    }
+    public function zulfri(): static {
+        return $this->state(fn(array $attributes) => [
+            'username' => "Zulfri",
+            'email' => 'zulfri@gmail.com',
+            'password' => Hash::make('zulfri123'),
+            'role' => 'CLIENT',
             'avatar' => null,
             'status' => 'active',
             'email_verified_at' => now(),

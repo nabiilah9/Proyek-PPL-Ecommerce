@@ -1,6 +1,6 @@
 import FigureCap from '../fragments/figcap';
 import NavbarTemplate from '../navbar-template';
-import { Link, router, usePage } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { useState, useEffect } from 'react';
 
 // Tipe user
@@ -30,9 +30,6 @@ export default function NavbarLayout({ className = "", user: initialUser = null 
     setUser(initialUser);
   }, [initialUser]);
 
-  const handleLogout = () => {
-    router.post('/logout');
-  };
 
   return (
     <section aria-label="navigation" className={`flex justify-between items-center ${className}`}>
@@ -65,7 +62,7 @@ export default function NavbarLayout({ className = "", user: initialUser = null 
             </Link>
 
             <Link
-              href="/Pesanan"
+              href="/pesanan-saya"
               className={`flex items-center rounded-full px-6 py-1 font-medium transition-colors duration-200 ${
                 activePage.startsWith("/pesanan")
                   ? "bg-[#028643] text-white"
@@ -91,7 +88,7 @@ export default function NavbarLayout({ className = "", user: initialUser = null 
               <Link href={route('profile.show')} className="hover:underline"> {/* Diubah */}
                 Halo, {user.username}
               </Link>
-              {/* <button onClick={handleLogout} className="ml-4 underline">Logout</button> */}
+              <Link href={route('logout')} method="post" as="button" className="ml-4 underline hover:text-gray-300 transition">Logout</Link>
             </>
           )}
         </div>

@@ -48,6 +48,7 @@ class UserSeeder extends Seeder
         User::factory()->khoir()->create();
         User::factory()->seinal()->create();
         User::factory()->yichang()->create();
+        User::factory()->zulfri()->create();
 
         User::factory()->nur()->create();
         User::factory()->suhaila()->create();

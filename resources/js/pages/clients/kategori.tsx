@@ -1,6 +1,5 @@
-
 import KategoriJumbotron from "@/components/layouts/kategori-jumbotron";
-import Main from "@/components/layouts/main-menu";
+import MainMenu from "@/components/layouts/main-menu";
 import AppTemplate from "@/components/templates/app-template";
 import CustomerReview from "@/components/layouts/review";
 import { Link } from "@inertiajs/react";
@@ -14,21 +13,24 @@ interface Category {
 interface Produk {
   id: number;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
+  unit: string;
+  stock: number;
   image_url: string;
+  discount: number;
 }
 
 interface Props {
   kategori: string;
-  categorySlug: string;
+  slug: string;
   categories: Category[];
   produk: Produk[];
 }
 
 export default function KategoriPage({
   kategori,
-  categorySlug,
+  slug,
   categories,
   produk,
 }: Props) {
@@ -40,7 +42,7 @@ export default function KategoriPage({
         gambar="/img/default.png"
       />
 
-      <nav aria-label="Kategori produk">
+      <nav aria-label="Navigasi kategori produk">
         <ul className="mt-5 flex flex-wrap justify-center gap-3 bg-[#F3F3F3] p-4">
           <li>
             <Link
@@ -52,7 +54,7 @@ export default function KategoriPage({
           </li>
 
           {categories.map((cat) => {
-            const aktif = cat.slug === categorySlug;
+            const aktif = cat.slug === slug;
 
             return (
               <li key={cat.id}>
@@ -73,7 +75,7 @@ export default function KategoriPage({
         </ul>
       </nav>
 
-      <Main kategori={kategori} produk={produk} />
+      <MainMenu kategori={kategori} produk={produk} />
 
       <CustomerReview />
     </AppTemplate>

@@ -58,7 +58,7 @@ interface ProfileFormData {
   [key: string]: string | boolean | File | null | AddressProps[] | ('POST' | 'PUT' | 'PATCH' | 'DELETE') | ('MAN' | 'WOMAN') | undefined;
 }
 
-export default function ProfilePage({ user, contact, addresses: initialAddresses, flash, errors: serverErrors }: ProfilePageProps) {
+export default function ProfilePage({ user, contact, addresses: initialAddresses, errors: serverErrors }: ProfilePageProps) {
 
   const { data, setData, post, processing, errors, reset, progress } = useForm<ProfileFormData>({
     _method: 'POST', // Default method, can be overridden by specific actions if needed.
@@ -84,7 +84,7 @@ export default function ProfilePage({ user, contact, addresses: initialAddresses
     setData('addresses', initialAddresses || []);
     // Secara default, semua alamat tertutup saat pertama kali dimuat
     setOpenAddressIndexes([]);
-  }, [initialAddresses]);
+  }, [initialAddresses, setData]);
 
   useEffect(() => {
     setProfilePreview(data.current_profile_url);

@@ -2,21 +2,57 @@ import Jumbotron from "@/components/layouts/jumbotron";
 import Main from "@/components/layouts/main";
 import CustomerReview from "@/components/layouts/review";
 import AppTemplate from "@/components/templates/app-template";
-import { Link } from "@inertiajs/react";
-// import { GoogleMap } from "@react-google-maps/api";
+import { Link, router } from "@inertiajs/react";
+import { FormEvent, useState } from "react";
 
-// type MenuProps = {
-//   User: User[],
-// }
+export interface Item {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  unit: string;
+  stock: number;
+  image_url: string;
+  discount: number;
+  is_available: boolean;
+  category?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+}
 
-const Menu = () => {
+interface HomepageProps {
+  items: Item[];
+}
+
+const Homepage = ({ items }: HomepageProps) => {
+  const [keyword, setKeyword] = useState("");
+
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    router.get("/menu", { search: keyword.trim() });
+  }
   return (
     <AppTemplate className="bg-[#FFFFFF]">
       <Jumbotron />
-      <form className="mx-16 mt-4">
-        <input type="text" placeholder="Search For Menu.."
-          className="w-full rounded-full p-3 border"
-        />
+      <form onSubmit={handleSearch} className="mx-16 mt-4">
+        <div className="flex overflow-hidden rounded-full border border-gray-400 bg-white">
+          <input
+            type="search"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="Cari nama kue atau produk..."
+            className="min-w-0 flex-1 bg-white p-3 text-gray-900 placeholder:text-gray-500 outline-none"
+          />
+          <button
+            type="submit"
+            className="bg-[#51793E] px-6 font-semibold text-white hover:bg-green-800"
+          >
+            Search
+          </button>
+        </div>
       </form>
       <nav aria-label="products navigation display">
         <ul className="flex justify-around p-3 mt-5 gap-3 bg-[#F3F3F3] text-2xl font-bold">
@@ -41,23 +77,15 @@ const Menu = () => {
         </ul>
       </nav>
       <div id="hero-section" className="mx-16">
-        <div id="nav" className="mt-10 flex items-center justify-between">
+        <div id="nav" className="mt-10 flex items-center justify-between text-black">
           <h1 className="text-3xl font-bold">Up to -40%🎊RB Store exclusive deals</h1>
           <div className="flex items-center">
-              <Link href="#" className="px-13">
-                Gorengan
-              </Link>
-              <Link href="#" className="px-13">
-                Kue Kering
-              </Link>
-              <Link href="#" className="rounded-4xl border border-green-300 px-13 py-2">
-                Kue Basah
-              </Link>
-              <Link href="#" className="px-13">
-                others
-              </Link>
-            </div>
+            <Link href="#" className="px-13">Gorengan</Link>
+            <Link href="#" className="px-13">Kue Kering</Link>
+            <Link href="#" className="rounded-4xl border border-green-300 px-13 py-2">Kue Basah</Link>
+            <Link href="#" className="px-13">others</Link>
           </div>
+        </div>
 
         <div className="mt-6 flex gap-2.5 overflow-auto">
           <div className="relative h-60 w-full rounded-2xl bg-[url('/img/dadar-gulung.png')] bg-cover bg-center">
@@ -83,19 +111,13 @@ const Menu = () => {
           </div>
         </div>
       </div>
-      <Main />
-      {/* <GoogleMap
-        onLoad={(map) => {
-          const bounds = new window.google.maps.LatLngBounds()
-          map.fitBounds(bounds)
-        }}
-        onUnmount={(map) => {
-          // do your stuff before map is unmounted
-        }}
-      /> */}
+
+      {/* Menu dari database */}
+      <Main items={items} />
+
       <CustomerReview />
     </AppTemplate>
   );
 };
 
-export default Menu;
+export default Homepage;

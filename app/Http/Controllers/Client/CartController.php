@@ -15,6 +15,59 @@ use Inertia\Inertia;
 class CartController extends Controller
 {
     /**
+     * Aturan kode diskon (Rule-Based System).
+     */
+    private function discountRules(): array
+    {
+        return [
+            'HEMAT10' => [
+                'minimum' => 50000,
+                'percentage' => 10,
+                'maximum' => 20000,
+            ],
+            'HEMAT20' => [
+                'minimum' => 100000,
+                'percentage' => 20,
+                'maximum' => 30000,
+            ],
+            'HEMAT5' => [
+                'minimum' => 25000,
+                'percentage' => 5,
+                'maximum' => 10000,
+            ],
+        ];
+    }
+
+    /**
+     * Menghitung diskon voucher berdasarkan aturan.
+     */
+    private function calculateVoucherDiscount(
+        string $code,
+        float $eligibleTotal
+    ): float {
+        $rules = $this->discountRules();
+
+        if (!isset($rules[$code])) {
+            throw new \Exception('Kode voucher tidak valid.');
+        }
+
+        $rule = $rules[$code];
+
+        if ($eligibleTotal < $rule['minimum']) {
+            throw new \Exception(
+                'Minimal belanja untuk voucher ' . $code .
+                ' adalah Rp' .
+                number_format($rule['minimum'], 0, ',', '.') . '.'
+            );
+        }
+
+        return min(
+            $eligibleTotal * ($rule['percentage'] / 100),
+            $rule['maximum']
+        );
+    }
+
+    /**
      * Menampilkan halaman keranjang.
      */
     public function index()
@@ -25,54 +78,78 @@ class CartController extends Controller
         $subtotal = 0;
         $discount = 0;
 
-        if (!empty($cartItems)) {
+        foreach ($cartItems as $itemId => $quantity) {
+            $item = Item::with('category')->find($itemId);
 
-            foreach ($cartItems as $itemId => $quantity) {
+            if (!$item) {
+                continue;
+            }
 
-                $item = Item::with('category')->find($itemId);
+            $quantity = (int) $quantity;
 
-                if (!$item) {
-                    continue;
-                }
+            $itemTotal = (float) $item->price * $quantity;
+            $itemDiscount = $itemTotal * (
+                (float) $item->discount / 100
+            );
 
-                $quantity = (int) $quantity;
+            $items[] = [
+                'id' => $item->id,
+                'name' => $item->name,
+                'price' => (float) $item->price,
+                'quantity' => $quantity,
+                'unit' => $item->unit,
+                'discount' => (float) $item->discount,
+                'total' => (int) round($itemTotal),
+                'discounted_total' => $itemTotal - $itemDiscount,
+            ];
 
-                $itemTotal = (float) $item->price * $quantity;
+            $subtotal += $itemTotal;
+            $discount += $itemDiscount;
+        }
 
-                $itemDiscount =
-                    $itemTotal * ((float) $item->discount / 100);
+        // Ongkir sementara gratis.
+        $shipping = 0;
 
-                $items[] = [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'price' => (float) $item->price,
-                    'quantity' => $quantity,
-                    'unit' => $item->unit,
-                    'discount' => (float) $item->discount,
-                    'total' => (int) round($itemTotal),
-                    'discounted_total' =>
-                        $itemTotal - $itemDiscount,
-                ];
+        // Total setelah diskon produk.
+        $eligibleTotal = max(0, $subtotal - $discount);
 
-                $subtotal += $itemTotal;
-                $discount += $itemDiscount;
+        // Periksa voucher yang sedang digunakan.
+        $voucher = session('applied_voucher');
+        $voucherDiscount = 0;
+
+        if ($voucher) {
+            try {
+                $voucherDiscount = $this->calculateVoucherDiscount(
+                    $voucher['code'],
+                    $eligibleTotal
+                );
+
+                // Perbarui nilai diskon di session.
+                $voucher['discount'] = (int) round($voucherDiscount);
+
+                session(['applied_voucher' => $voucher]);
+            } catch (\Exception $e) {
+                session()->forget('applied_voucher');
+                $voucher = null;
+                $voucherDiscount = 0;
             }
         }
 
-        // Ongkir sementara gratis
-        $shipping = 0;
-
-        $total = $subtotal - $discount + $shipping;
+        $total = max(
+            0,
+            $eligibleTotal - $voucherDiscount + $shipping
+        );
 
         return Inertia::render('clients/Cart', [
             'items' => $items,
             'subtotal' => $subtotal,
             'discount' => $discount,
             'shipping' => $shipping,
-            'total' => $total,
+            'voucher' => $voucher,
+            'voucherDiscount' => (int) round($voucherDiscount),
+            'total' => (int) round($total),
         ]);
     }
-
 
     /**
      * Menambahkan produk ke keranjang.
@@ -103,16 +180,13 @@ class CartController extends Controller
             $cart[$itemId] = $quantity;
         }
 
-        session([
-            'cart' => $cart,
-        ]);
+        session(['cart' => $cart]);
 
         return back()->with(
             'success',
-            'Item added to cart successfully!'
+            'Item berhasil ditambahkan ke keranjang!'
         );
     }
-
 
     /**
      * Mengubah jumlah produk di keranjang.
@@ -143,16 +217,13 @@ class CartController extends Controller
             unset($cart[$itemId]);
         }
 
-        session([
-            'cart' => $cart,
-        ]);
+        session(['cart' => $cart]);
 
         return back()->with(
             'success',
-            'Cart updated successfully!'
+            'Keranjang berhasil diperbarui!'
         );
     }
-
 
     /**
      * Menghapus produk dari keranjang.
@@ -171,16 +242,13 @@ class CartController extends Controller
 
         unset($cart[(int) $validated['item_id']]);
 
-        session([
-            'cart' => $cart,
-        ]);
+        session(['cart' => $cart]);
 
         return back()->with(
             'success',
-            'Item removed from cart successfully!'
+            'Item berhasil dihapus dari keranjang!'
         );
     }
-
 
     /**
      * Mengambil jumlah item dan total harga keranjang.
@@ -193,7 +261,6 @@ class CartController extends Controller
         $total = 0;
 
         foreach ($cart as $itemId => $quantity) {
-
             $item = Item::find($itemId);
 
             if (!$item) {
@@ -201,61 +268,132 @@ class CartController extends Controller
             }
 
             $quantity = (int) $quantity;
-
             $count += $quantity;
 
-            $itemTotal =
-                (float) $item->price * $quantity;
+            $itemTotal = (float) $item->price * $quantity;
+            $itemDiscount = $itemTotal * (
+                (float) $item->discount / 100
+            );
 
-            $itemDiscount =
-                $itemTotal *
-                ((float) $item->discount / 100);
+            $total += $itemTotal - $itemDiscount;
+        }
 
-            $total +=
-                $itemTotal - $itemDiscount;
+        $voucher = session('applied_voucher');
+
+        if ($voucher && $count > 0) {
+            try {
+                $voucherDiscount = $this->calculateVoucherDiscount(
+                    $voucher['code'],
+                    $total
+                );
+
+                $total -= $voucherDiscount;
+            } catch (\Exception $e) {
+                session()->forget('applied_voucher');
+            }
         }
 
         return response()->json([
             'count' => $count,
-            'total' => $total,
+            'total' => max(0, $total),
         ]);
     }
 
+    /**
+     * Menerapkan kode voucher diskon.
+     */
+    public function applyDiscount(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+            ],
+        ]);
+
+        $code = strtoupper(trim($validated['code']));
+        $rules = $this->discountRules();
+
+        if (!isset($rules[$code])) {
+            return back()->withErrors([
+                'code' => 'Kode voucher tidak valid.',
+            ]);
+        }
+
+        $cart = session('cart', []);
+
+        if (empty($cart)) {
+            return back()->withErrors([
+                'code' => 'Keranjang masih kosong.',
+            ]);
+        }
+
+        $subtotal = 0;
+        $productDiscount = 0;
+
+        foreach ($cart as $itemId => $quantity) {
+            $item = Item::find($itemId);
+
+            if (!$item) {
+                continue;
+            }
+
+            $itemTotal = (float) $item->price * (int) $quantity;
+
+            $itemDiscount = $itemTotal * (
+                (float) $item->discount / 100
+            );
+
+            $subtotal += $itemTotal;
+            $productDiscount += $itemDiscount;
+        }
+
+        $eligibleTotal = max(0, $subtotal - $productDiscount);
+
+        try {
+            $voucherDiscount = $this->calculateVoucherDiscount(
+                $code,
+                $eligibleTotal
+            );
+
+            session([
+                'applied_voucher' => [
+                    'code' => $code,
+                    'discount' => (int) round($voucherDiscount),
+                ],
+            ]);
+
+            return back()->with(
+                'success',
+                'Voucher ' . $code . ' berhasil digunakan!'
+            );
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'code' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Menghapus voucher yang sedang digunakan.
+     */
+    public function removeDiscount()
+    {
+        session()->forget('applied_voucher');
+
+        return back()->with(
+            'success',
+            'Voucher berhasil dihapus.'
+        );
+    }
 
     /**
      * Checkout keranjang.
      */
     public function checkout(Request $request)
     {
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDASI REQUEST
-        |--------------------------------------------------------------------------
-        */
-
-        $validated = $request->validate([
-            'payment_method' => [
-                'required',
-                'string',
-                'in:cash,bank,e-wallet',
-            ],
-
-            'note' => [
-                'nullable',
-                'string',
-                'max:1000',
-            ],
-        ]);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CEK USER
-        |--------------------------------------------------------------------------
-        */
-
         if (!Auth::check()) {
-
             return redirect()
                 ->route('login')
                 ->with(
@@ -264,51 +402,46 @@ class CartController extends Controller
                 );
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL CART
-        |--------------------------------------------------------------------------
-        */
+        $validated = $request->validate([
+            'payment_method' => [
+                'required',
+                'string',
+                'in:cash,bank,e-wallet',
+            ],
+            'note' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+        ]);
 
         $cart = session('cart', []);
 
         if (empty($cart)) {
-
             return back()->with(
                 'error',
                 'Keranjang masih kosong.'
             );
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | PROSES TRANSAKSI
-        |--------------------------------------------------------------------------
-        */
-
         try {
+            $rules = $this->discountRules();
+            $voucher = session('applied_voucher');
 
             $transaction = DB::transaction(function () use (
                 $cart,
-                $validated
+                $validated,
+                $rules,
+                $voucher
             ) {
-
                 $subtotal = 0;
                 $discount = 0;
-
                 $transactionItems = [];
 
-
                 /*
-                |--------------------------------------------------------------------------
-                | CEK SEMUA PRODUK DAN STOK
-                |--------------------------------------------------------------------------
-                */
-
+                 * Periksa produk dan stok.
+                 */
                 foreach ($cart as $itemId => $quantity) {
-
                     $quantity = (int) $quantity;
 
                     if ($quantity < 1) {
@@ -317,42 +450,19 @@ class CartController extends Controller
                         );
                     }
 
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | LOCK PRODUK
-                    |--------------------------------------------------------------------------
-                    |
-                    | Menghindari stok berubah bersamaan saat checkout.
-                    |
-                    */
-
-                    $item = Item::where(
-                        'id',
-                        $itemId
-                    )
+                    $item = Item::where('id', $itemId)
                         ->lockForUpdate()
                         ->first();
 
-
                     if (!$item) {
-
                         throw new \Exception(
                             "Produk dengan ID {$itemId} tidak ditemukan."
                         );
                     }
 
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CEK STOK
-                    |--------------------------------------------------------------------------
-                    */
-
                     $stock = (int) $item->stock;
 
                     if ($stock < $quantity) {
-
                         throw new \Exception(
                             "Stok {$item->name} tidak mencukupi. " .
                             "Stok tersedia: {$stock}, " .
@@ -360,28 +470,12 @@ class CartController extends Controller
                         );
                     }
 
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | HITUNG HARGA
-                    |--------------------------------------------------------------------------
-                    */
-
                     $price = (float) $item->price;
+                    $itemTotal = $price * $quantity;
 
-                    $itemTotal =
-                        $price * $quantity;
-
-                    $itemDiscount =
-                        $itemTotal *
-                        ((float) $item->discount / 100);
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SIMPAN DATA ITEM UNTUK TRANSAKSI
-                    |--------------------------------------------------------------------------
-                    */
+                    $itemDiscount = $itemTotal * (
+                        (float) $item->discount / 100
+                    );
 
                     $transactionItems[] = [
                         'item' => $item,
@@ -389,153 +483,114 @@ class CartController extends Controller
                         'price_at_time' => $price,
                     ];
 
-
                     $subtotal += $itemTotal;
                     $discount += $itemDiscount;
                 }
 
-
                 /*
-                |--------------------------------------------------------------------------
-                | HITUNG TOTAL
-                |--------------------------------------------------------------------------
-                */
-
+                 * Hitung total setelah diskon produk.
+                 */
                 $shipping = 0;
-
-                $total =
-                    $subtotal -
-                    $discount +
-                    $shipping;
-
+                $eligibleTotal = max(0, $subtotal - $discount);
 
                 /*
-                |--------------------------------------------------------------------------
-                | BUAT TRANSAKSI
-                |--------------------------------------------------------------------------
-                */
+                 * Terapkan voucher jika ada.
+                 */
+                $voucherDiscount = 0;
 
+                if ($voucher) {
+                    $code = strtoupper($voucher['code']);
+
+                    if (!isset($rules[$code])) {
+                        throw new \Exception(
+                            'Kode voucher tidak valid.'
+                        );
+                    }
+
+                    $rule = $rules[$code];
+
+                    if ($eligibleTotal < $rule['minimum']) {
+                        throw new \Exception(
+                            'Minimal belanja untuk voucher tidak terpenuhi.'
+                        );
+                    }
+
+                    $voucherDiscount = min(
+                        $eligibleTotal * (
+                            $rule['percentage'] / 100
+                        ),
+                        $rule['maximum']
+                    );
+                }
+
+                $total = max(
+                    0,
+                    $eligibleTotal - $voucherDiscount + $shipping
+                );
+
+                /*
+                 * Simpan transaksi.
+                 */
                 $transaction = Transaction::create([
                     'client_id' => Auth::id(),
                     'total' => $total,
                     'note' => $validated['note'] ?? null,
-                    'payment_method' =>
-                        $validated['payment_method'],
+                    'payment_method' => $validated['payment_method'],
                     'status' => 'pending',
                 ]);
 
-
                 /*
-                |--------------------------------------------------------------------------
-                | BUAT DETAIL TRANSAKSI
-                |--------------------------------------------------------------------------
-                */
-
+                 * Simpan detail transaksi dan kurangi stok.
+                 */
                 foreach ($transactionItems as $transactionItem) {
-
-                    $item =
-                        $transactionItem['item'];
-
-                    $quantity =
-                        $transactionItem['quantity'];
-
-                    $price =
-                        $transactionItem['price_at_time'];
-
+                    $item = $transactionItem['item'];
+                    $quantity = $transactionItem['quantity'];
+                    $price = $transactionItem['price_at_time'];
 
                     TransactionDetail::create([
-                        'transaction_id' =>
-                            $transaction->id,
-
-                        'item_id' =>
-                            $item->id,
-
-                        'quantity' =>
-                            $quantity,
-
-                        'price_at_time' =>
-                            $price,
+                        'transaction_id' => $transaction->id,
+                        'item_id' => $item->id,
+                        'quantity' => $quantity,
+                        'price_at_time' => $price,
                     ]);
 
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | KURANGI STOK
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $item->decrement(
-                        'stock',
-                        $quantity
-                    );
+                    $item->decrement('stock', $quantity);
                 }
-
 
                 return $transaction;
             });
 
+            /*
+             * Kosongkan keranjang dan voucher setelah transaksi berhasil.
+             */
+            session()->forget([
+                'cart',
+                'applied_voucher',
+            ]);
 
             /*
-            |--------------------------------------------------------------------------
-            | KOSONGKAN CART
-            |--------------------------------------------------------------------------
-            */
-
-            session()->forget('cart');
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | REDIRECT KE ORDER CONFIRMATION
-            |--------------------------------------------------------------------------
-            */
-
+             * Arahkan ke halaman konfirmasi pesanan.
+             */
             return redirect()
-                ->route(
-                    'client.orders.show',
-                    [
-                        'transaction' =>
-                            $transaction->id,
-                    ]
-                )
+                ->route('client.orders.show', [
+                    'transaction' => $transaction->id,
+                ])
                 ->with(
                     'success',
                     'Pesanan berhasil dibuat.'
                 );
-
-
         } catch (\Throwable $e) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | CATAT ERROR KE LARAVEL LOG
-            |--------------------------------------------------------------------------
-            */
-
-            Log::error(
-                'CHECKOUT ERROR',
-                [
-                    'user_id' => Auth::id(),
-                    'payment_method' =>
-                        $request->payment_method,
-                    'cart' => $cart,
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                ]
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | KEMBALI KE CART DENGAN ERROR
-            |--------------------------------------------------------------------------
-            */
+            Log::error('CHECKOUT ERROR', [
+                'user_id' => Auth::id(),
+                'payment_method' => $request->payment_method,
+                'cart' => $cart,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
             return back()->withErrors([
-                'checkout' =>
-                    'Checkout gagal: ' .
-                    $e->getMessage(),
+                'checkout' => 'Checkout gagal: ' . $e->getMessage(),
             ]);
         }
     }

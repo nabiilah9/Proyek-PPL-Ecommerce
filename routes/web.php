@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\Admin\AdminAddressController;
@@ -66,8 +65,15 @@ Route::get('/Delivery', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/menu', [CategoryController::class, 'index']);
-Route::get('/menu/{slug}', [CategoryController::class, 'show']);
+Route::get('/menu', [
+    CategoryController::class,
+    'index',
+]);
+
+Route::get('/menu/{slug}', [
+    CategoryController::class,
+    'show',
+]);
 
 /*
 |--------------------------------------------------------------------------
@@ -76,13 +82,17 @@ Route::get('/menu/{slug}', [CategoryController::class, 'show']);
 */
 
 Route::middleware(['auth'])->group(function () {
+
     Route::get('/pesanan-saya', function (MidtransService $midtrans) {
+
         Transaction::where('client_id', Auth::id())
             ->where('status', 'pending')
             ->whereIn('payment_method', ['bank', 'e-wallet'])
             ->whereNotNull('midtrans_order_id')
             ->get()
-            ->each(fn(Transaction $transaction) => $midtrans->refreshStatus($transaction));
+            ->each(fn (Transaction $transaction) =>
+                $midtrans->refreshStatus($transaction)
+            );
 
         $transactions = Transaction::with(['details.item'])
             ->where('client_id', Auth::id())
@@ -93,12 +103,13 @@ Route::middleware(['auth'])->group(function () {
             'transactions' => $transactions,
             'user' => Auth::user(),
         ]);
+
     })->name('pesanan.saya');
 });
 
 /*
 |--------------------------------------------------------------------------
-| WEBHOOK MIDTRANS (tanpa auth, dipanggil server Midtrans)
+| WEBHOOK MIDTRANS
 |--------------------------------------------------------------------------
 */
 
@@ -106,7 +117,6 @@ Route::post('/midtrans/notification', [
     MidtransNotificationController::class,
     'handle',
 ])->name('midtrans.notification');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -123,9 +133,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('user')->group(function () {
+
         Route::get('/', function () {
             return Inertia::render('clients/welcome');
         })->name('home');
+
     });
 
     /*
@@ -154,25 +166,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('client.')
         ->group(function () {
 
-            // CART
+            // MENAMPILKAN CART
             Route::get('/cart', [
                 CartController::class,
                 'index',
             ])->name('cart.index');
 
-            // TAMBAH KE CART
+            // TAMBAH PRODUK KE CART
             Route::post('/cart/add', [
                 CartController::class,
                 'addToCart',
             ])->name('cart.add');
 
-            // UPDATE CART
+            // UPDATE JUMLAH PRODUK
             Route::patch('/cart/update', [
                 CartController::class,
                 'updateCart',
             ])->name('cart.update');
 
-            // HAPUS CART
+            // HAPUS PRODUK DARI CART
             Route::delete('/cart/remove', [
                 CartController::class,
                 'removeFromCart',
@@ -192,31 +204,65 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             /*
             |--------------------------------------------------------------------------
+            | PPL-45: KODE DISKON (RULE-BASED SYSTEM)
+            |--------------------------------------------------------------------------
+            */
+
+            // MENERAPKAN KODE VOUCHER
+            Route::post('/cart/apply-discount', [
+                CartController::class,
+                'applyDiscount',
+            ])->name('cart.applyDiscount');
+
+            // MENGHAPUS KODE VOUCHER
+            Route::delete('/cart/remove-discount', [
+                CartController::class,
+                'removeDiscount',
+            ])->name('cart.removeDiscount');
+
+            /*
+            |--------------------------------------------------------------------------
+            | PEMBAYARAN MIDTRANS
+            |--------------------------------------------------------------------------
+            */
+
+            Route::post('/orders/{transaction}/cancel', [
+                PaymentController::class,
+                'cancel',
+            ])->name('orders.cancel');
+
+            Route::post('/orders/{transaction}/pay', [
+                PaymentController::class,
+                'token',
+            ])->name('orders.pay');
+
+            /*
+            |--------------------------------------------------------------------------
             | KONFIRMASI PESANAN
             |--------------------------------------------------------------------------
-            | URL: /client/orders/{transaction}
-            | File: resources/js/pages/clients/OrderConfirmation.tsx
             */
-            Route::post('/orders/{transaction}/cancel', [PaymentController::class, 'cancel'])
-                ->name('orders.cancel');
 
-            Route::post('/orders/{transaction}/pay', [PaymentController::class, 'token'])
-                ->name('orders.pay');
             Route::get('/orders/{transaction}', function (
                 Transaction $transaction,
-                MidtransService $midtrans,
+                MidtransService $midtrans
             ) {
-                abort_unless($transaction->client_id === Auth::id(), 403);
+
+                abort_unless(
+                    $transaction->client_id === Auth::id(),
+                    403
+                );
 
                 $transaction = $midtrans->refreshStatus($transaction);
 
                 return Inertia::render('clients/OrderConfirmation', [
                     'transactionId' => $transaction->id,
-                    'status'        => $transaction->status,
+                    'status' => $transaction->status,
                     'paymentMethod' => $transaction->payment_method,
-                    'total'         => $transaction->total,
+                    'total' => $transaction->total,
                 ]);
+
             })->name('orders.show');
+
         });
 
     /*
@@ -239,6 +285,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('items', AdminItemController::class);
         Route::resource('ratings', AdminRatingController::class);
         Route::resource('details', AdminTransactionDetailController::class);
+
     });
 
     /*
@@ -248,10 +295,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('courier')->group(function () {
+
         Route::get('/', function () {
             return response()->view('welcome');
         });
+
     });
+
 });
 
 /*

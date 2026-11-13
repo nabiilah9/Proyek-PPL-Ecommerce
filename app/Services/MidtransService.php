@@ -12,15 +12,18 @@ use Midtrans\Snap;
 use Midtrans\Transaction as MidtransTransaction;
 use Throwable;
 
-class MidtransService {
-    public function __construct() {
-        Config::$serverKey    = config('services.midtrans.server_key');
+class MidtransService
+{
+    public function __construct()
+    {
+        Config::$serverKey = config('services.midtrans.server_key');
         Config::$isProduction = (bool) config('services.midtrans.is_production');
-        Config::$isSanitized  = true;
-        Config::$is3ds        = true;
+        Config::$isSanitized = true;
+        Config::$is3ds = true;
     }
 
-    public function getSnapToken(Transaction $transaction): string {
+    public function getSnapToken(Transaction $transaction): string
+    {
         if ($transaction->snap_token || $transaction->midtrans_order_id) {
             $oldSnapToken = $transaction->snap_token;
             $oldOrderId = $transaction->midtrans_order_id;
@@ -47,40 +50,41 @@ class MidtransService {
         }
 
         $orderId = 'PPL-' . $transaction->id . '-' . Str::random(16);
-        $user    = $transaction->user;
+        $user = $transaction->user;
 
         $snapToken = Snap::getSnapToken([
             'transaction_details' => [
-                'order_id'     => $orderId,
+                'order_id' => $orderId,
                 'gross_amount' => (int) $transaction->total,
             ],
             'item_details' => [[
-                'id'       => 'TRX-' . $transaction->id,
-                'price'    => (int) $transaction->total,
+                'id' => 'TRX-' . $transaction->id,
+                'price' => (int) $transaction->total,
                 'quantity' => 1,
-                'name'     => 'Pesanan #' . $transaction->id,
+                'name' => 'Pesanan #' . $transaction->id,
             ]],
             'customer_details' => [
                 'first_name' => $user->name,
-                'email'      => $user->email,
+                'email' => $user->email,
             ],
             'callbacks' => [
                 'finish' => route('client.orders.show', $transaction->id),
             ],
             'enabled_payments' => $this->enabledPayments($transaction->payment_method),
-            // Pesanan yang tidak dibayar akan expire, lalu stok dikembalikan lewat webhook
+            // Pesanan yang tidak dibayar akan expire, lalu stok dikembalikan lewat webhook.
             'expiry' => ['unit' => 'minutes', 'duration' => 60],
         ]);
 
         $transaction->update([
             'midtrans_order_id' => $orderId,
-            'snap_token'        => $snapToken,
+            'snap_token' => $snapToken,
         ]);
 
         return $snapToken;
     }
 
-    public function refreshStatus(Transaction $transaction): Transaction {
+    public function refreshStatus(Transaction $transaction): Transaction
+    {
         if ($transaction->status !== 'pending' || ! $transaction->midtrans_order_id) {
             return $transaction->fresh();
         }
@@ -106,10 +110,12 @@ class MidtransService {
         return $transaction->fresh();
     }
 
-    public function applyNotification(array $notification): void {
+    public function applyNotification(array $notification): void
+    {
         $orderId = (string) ($notification['order_id'] ?? '');
         $transaction = Transaction::where('midtrans_order_id', $orderId)->first();
 
+        // Format order ID: PPL-{transaction_id}-{random_string}
         if (! $transaction && preg_match('/^PPL-(\d+)-[A-Za-z0-9]+$/D', $orderId, $matches)) {
             $transaction = Transaction::query()
                 ->whereKey((int) $matches[1])
@@ -135,7 +141,8 @@ class MidtransService {
         );
     }
 
-    public function cancelPending(Transaction $transaction): void {
+    public function cancelPending(Transaction $transaction): void
+    {
         if ($transaction->midtrans_order_id) {
             MidtransTransaction::cancel($transaction->midtrans_order_id);
         }
@@ -173,13 +180,15 @@ class MidtransService {
         });
     }
 
-    private function restoreStock(Transaction $transaction): void {
+    private function restoreStock(Transaction $transaction): void
+    {
         foreach ($transaction->details as $detail) {
             Item::whereKey($detail->item_id)->increment('stock', $detail->quantity);
         }
     }
 
-    private function enabledPayments(string $paymentMethod): array {
+    private function enabledPayments(string $paymentMethod): array
+    {
         return match ($paymentMethod) {
             'bank' => [
                 'bank_transfer',

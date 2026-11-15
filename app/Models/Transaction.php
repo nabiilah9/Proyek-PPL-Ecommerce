@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Transaction extends Model {
     use HasFactory;
 
+
     protected $fillable = [
         'client_id',
         'total',
@@ -20,10 +21,14 @@ class Transaction extends Model {
         'midtrans_order_id',
         'snap_token',
         'payment_type',
-        'paid_at'
+        'paid_at',
+        'received_at',
     ];
 
-    protected $casts = ['paid_at' => 'datetime'];
+    protected $casts = [
+        'paid_at' => 'datetime',
+        'received_at' => 'datetime',
+    ];
 
     /**
      * User / Client yang melakukan transaksi
@@ -69,5 +74,10 @@ class Transaction extends Model {
                 'price_at_time'
             )
             ->withTimestamps();
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(Rating::class, 'transaction_id', 'id');
     }
 }

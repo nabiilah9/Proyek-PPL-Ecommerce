@@ -23,8 +23,8 @@ class Item extends Model {
                     ->withTimestamps();
     }
 
-    public function ratings(): HasMany { // 1:M
-        return $this->hasMany(Rating::class, 'rating_id', 'id');
+    public function ratings(): HasMany {
+        return $this->hasMany(Rating::class, 'item_id', 'id');
     }
 
     protected $fillable= [

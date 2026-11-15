@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, router } from "@inertiajs/react";
 
 import {
@@ -11,6 +11,7 @@ import {
     DollarSign,
     CreditCard,
     XCircle,
+    Star,
 } from "lucide-react";
 
 /* =========================================================
@@ -35,6 +36,13 @@ interface TransactionDetail {
     item?: Item | null;
 }
 
+interface Rating {
+    id: number;
+    item_id: number;
+    score: number;
+    comment: string | null;
+}
+
 interface Transaction {
     id: number;
     total: number;
@@ -42,8 +50,10 @@ interface Transaction {
     payment_method: string;
     note?: string | null;
     created_at: string;
+    received_at?: string | null;
 
     details?: TransactionDetail[];
+    ratings?: Rating[];
 }
 
 interface UserData {
@@ -73,7 +83,26 @@ export default function PesananSaya({
         useState<Transaction | null>(null);
     const [cancellingOrderId, setCancellingOrderId] =
         useState<number | null>(null);
+    const [confirmingOrderId, setConfirmingOrderId] =
+        useState<number | null>(null);
+    const [ratingScores, setRatingScores] =
+        useState<Record<number, number>>({});
+    const [ratingComments, setRatingComments] =
+        useState<Record<number, string>>({});
+    const [submittingRatingItemId, setSubmittingRatingItemId] =
+        useState<number | null>(null);
 
+useEffect(() => {
+    if (!selectedOrder) return;
+
+    const updatedOrder = transactions.find(
+        (transaction) => transaction.id === selectedOrder.id
+    );
+
+    if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+    }
+}, [transactions]);
     /* =====================================================
        USER NAME
     ===================================================== */
@@ -227,12 +256,14 @@ export default function PesananSaya({
         }
     };
 
+
     const cancelOrder = (transaction: Transaction) => {
         if (!window.confirm(`Batalkan pesanan #${transaction.id}?`)) {
             return;
         }
 
         setCancellingOrderId(transaction.id);
+
         router.post(
             `/client/orders/${transaction.id}/cancel`,
             {},
@@ -242,6 +273,79 @@ export default function PesananSaya({
             }
         );
     };
+
+    /* =====================================================
+       KONFIRMASI PESANAN DITERIMA
+    ===================================================== */
+
+    const confirmOrderReceived = (transaction: Transaction) => {
+        if (!window.confirm(
+            `Konfirmasi bahwa pesanan #${transaction.id} sudah diterima?`
+        )) {
+            return;
+        }
+
+        setConfirmingOrderId(transaction.id);
+
+        router.post(
+            `/client/orders/${transaction.id}/received`,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    console.log("Konfirmasi penerimaan berhasil.");
+                },
+                onError: (errors) => {
+                    console.error("Gagal mengonfirmasi penerimaan:", errors);
+                },
+                onFinish: () => setConfirmingOrderId(null),
+            }
+        );
+    };
+
+    /* =====================================================
+       KIRIM RATING DAN ULASAN
+    ===================================================== */
+
+    const submitRating = (
+        transaction: Transaction,
+        item: Item
+    ) => {
+        const score = ratingScores[item.id];
+
+        if (!score || score < 1 || score > 5) {
+            window.alert("Silakan pilih rating 1 sampai 5 bintang.");
+            return;
+        }
+
+        setSubmittingRatingItemId(item.id);
+
+        router.post(
+            `/client/orders/${transaction.id}/items/${item.id}/rating`,
+            {
+                score,
+                comment: ratingComments[item.id] ?? "",
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setRatingScores((previous) => {
+                        const updated = { ...previous };
+                        delete updated[item.id];
+                        return updated;
+                    });
+
+                    setRatingComments((previous) => {
+                        const updated = { ...previous };
+                        delete updated[item.id];
+                        return updated;
+                    });
+                },
+                onFinish: () => setSubmittingRatingItemId(null),
+            }
+        );
+    };
+
 
     /* =====================================================
        AMBIL DETAIL PRODUK
@@ -492,6 +596,202 @@ export default function PesananSaya({
                         </div>
 
                     </div>
+                    {/* KONFIRMASI PENERIMAAN */}
+
+                    {selectedOrder.status === "paid" && (
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <h2 className="text-xl font-bold mb-3 text-gray-900">
+                                Konfirmasi Penerimaan
+                            </h2>
+
+                            {selectedOrder.received_at ? (
+                                <div className="flex items-start gap-3">
+                                    <CheckCircle
+                                        size={22}
+                                        className="text-green-600 mt-1"
+                                    />
+
+                                    <div>
+                                        <p className="font-semibold text-green-700">
+                                            Pesanan sudah dikonfirmasi diterima.
+                                        </p>
+
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            Dikonfirmasi pada:{" "}
+                                            {formatDate(selectedOrder.received_at)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-gray-600 mb-4">
+                                        Jika produk sudah Anda terima, tekan tombol berikut
+                                        untuk mengonfirmasi penerimaan pesanan.
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => confirmOrderReceived(selectedOrder)}
+                                        disabled={confirmingOrderId === selectedOrder.id}
+                                        className="bg-green-600 text-white px-5 py-3 rounded-lg hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {confirmingOrderId === selectedOrder.id
+                                            ? "Memproses..."
+                                            : "Konfirmasi Pesanan Diterima"}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {/* RATING DAN ULASAN */}
+
+                    {selectedOrder.received_at && (
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <h2 className="text-xl font-bold mb-2 text-gray-900">
+                                Rating dan Ulasan Produk
+                            </h2>
+
+                            <p className="text-gray-600 mb-5">
+                                Berikan penilaian terhadap produk yang Anda terima.
+                            </p>
+
+                            <div className="space-y-6">
+                                {orderItems.map((detail) => {
+                                    const item = detail.item;
+
+                                    if (!item) return null;
+
+                                    const existingRating =
+                                        selectedOrder.ratings?.find(
+                                            (rating) => rating.item_id === item.id
+                                        );
+
+                                    return (
+                                        <div
+                                            key={detail.id}
+                                            className="border-b pb-5 last:border-b-0 last:pb-0"
+                                        >
+                                            <h3 className="font-semibold text-gray-900 mb-3">
+                                                {item.name}
+                                            </h3>
+
+                                            {existingRating ? (
+                                                <div className="bg-green-50 rounded-lg p-4">
+                                                    <p className="text-green-700 font-semibold mb-2">
+                                                        Ulasan berhasil dikirim.
+                                                    </p>
+
+                                                    <div className="flex items-center gap-1 mb-2">
+                                                        {[1, 2, 3, 4, 5].map((star) => (
+                                                            <Star
+                                                                key={star}
+                                                                size={20}
+                                                                className={
+                                                                    star <= existingRating.score
+                                                                        ? "fill-yellow-400 text-yellow-400"
+                                                                        : "text-gray-300"
+                                                                }
+                                                            />
+                                                        ))}
+
+                                                        <span className="ml-2 text-sm text-gray-700">
+                                                            {existingRating.score}/5
+                                                        </span>
+                                                    </div>
+
+                                                    {existingRating.comment && (
+                                                        <p className="text-gray-700">
+                                                            {existingRating.comment}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <p className="text-sm text-gray-600 mb-2">
+                                                        Pilih rating:
+                                                    </p>
+
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        {[1, 2, 3, 4, 5].map((star) => (
+                                                            <button
+                                                                key={star}
+                                                                type="button"
+                                                                aria-label={`Rating ${star} bintang`}
+                                                                onClick={() =>
+                                                                    setRatingScores((previous) => ({
+                                                                        ...previous,
+                                                                        [item.id]: star,
+                                                                    }))
+                                                                }
+                                                                className="cursor-pointer"
+                                                            >
+                                                                <Star
+                                                                    size={30}
+                                                                    className={
+                                                                        star <= (ratingScores[item.id] ?? 0)
+                                                                            ? "fill-yellow-400 text-yellow-400"
+                                                                            : "text-gray-300 hover:text-yellow-400"
+                                                                    }
+                                                                />
+                                                            </button>
+                                                        ))}
+
+                                                        <span className="text-sm text-gray-600 ml-1">
+                                                            {ratingScores[item.id]
+                                                                ? `${ratingScores[item.id]}/5`
+                                                                : "Belum dipilih"}
+                                                        </span>
+                                                    </div>
+
+                                                    <label
+                                                        htmlFor={`rating-comment-${item.id}`}
+                                                        className="block text-sm font-medium text-gray-700 mb-2"
+                                                    >
+                                                        Ulasan (opsional)
+                                                    </label>
+
+                                                    <textarea
+                                                        id={`rating-comment-${item.id}`}
+                                                        value={ratingComments[item.id] ?? ""}
+                                                        onChange={(event) =>
+                                                            setRatingComments((previous) => ({
+                                                                ...previous,
+                                                                [item.id]: event.target.value,
+                                                            }))
+                                                        }
+                                                        maxLength={1000}
+                                                        rows={3}
+                                                        placeholder="Tuliskan pengalaman Anda mengenai produk ini..."
+                                                        className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                    />
+
+                                                    <p className="text-xs text-gray-500 text-right mt-1">
+                                                        {(ratingComments[item.id] ?? "").length}/1000 karakter
+                                                    </p>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            submitRating(selectedOrder, item)
+                                                        }
+                                                        disabled={
+                                                            submittingRatingItemId === item.id
+                                                        }
+                                                        className="mt-3 bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    >
+                                                        {submittingRatingItemId === item.id
+                                                            ? "Mengirim..."
+                                                            : "Kirim Rating"}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* CATATAN */}
 

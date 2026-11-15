@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\Admin\AdminAddressController;
@@ -13,8 +12,11 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Client\CartController;
 use App\Http\Controllers\Client\ProfileControllerClient;
 use App\Http\Controllers\Client\PaymentController;
+use App\Http\Controllers\Client\OrderReceiptController;
 use App\Http\Controllers\MidtransNotificationController;
+use App\Http\Controllers\Client\ProductController;
 use App\Services\MidtransService;
+use App\Models\Category;
 use App\Models\Item;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
@@ -51,8 +53,11 @@ Route::get('/Homepage', function () {
         ->where('stock', '>', 0)
         ->get();
 
+    $categories = Category::orderBy('name')->get();
+
     return Inertia::render('Homepage', [
         'items' => $items,
+        'categories' => $categories,
     ]);
 })->name('Homepage');
 
@@ -69,6 +74,11 @@ Route::get('/Delivery', function () {
 Route::get('/menu', [CategoryController::class, 'index']);
 Route::get('/menu/{slug}', [CategoryController::class, 'show']);
 
+Route::get('/produk/{item}', [
+    ProductController::class,
+    'show',
+])->name('produk.show');
+
 /*
 |--------------------------------------------------------------------------
 | PESANAN SAYA
@@ -84,7 +94,10 @@ Route::middleware(['auth'])->group(function () {
             ->get()
             ->each(fn(Transaction $transaction) => $midtrans->refreshStatus($transaction));
 
-        $transactions = Transaction::with(['details.item'])
+        $transactions = Transaction::with([
+            'details.item',
+            'ratings',
+        ])
             ->where('client_id', Auth::id())
             ->latest()
             ->get();
@@ -202,11 +215,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::post('/orders/{transaction}/pay', [PaymentController::class, 'token'])
                 ->name('orders.pay');
+
+            // KONFIRMASI PESANAN DITERIMA
+            Route::post('/orders/{transaction}/received', [
+                OrderReceiptController::class,
+                'confirm',
+            ])->name('orders.received');
+
+            // SIMPAN RATING DAN ULASAN PRODUK
+            Route::post('/orders/{transaction}/items/{item}/rating', [
+                OrderReceiptController::class,
+                'storeRating',
+            ])->name('orders.rating.store');
+
+            // DETAIL PESANAN DAN PEMBAYARAN
             Route::get('/orders/{transaction}', function (
                 Transaction $transaction,
                 MidtransService $midtrans,
             ) {
-                abort_unless($transaction->client_id === Auth::id(), 403);
+                abort_unless(
+                    (int) $transaction->client_id === (int) Auth::id(),
+                    403
+                );
 
                 $transaction = $midtrans->refreshStatus($transaction);
 

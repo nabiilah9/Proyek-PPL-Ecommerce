@@ -25,12 +25,20 @@ class CategoryController extends Controller
         $products = [];
 
         if ($search !== '') {
+            $keywords = preg_split('/[\s\-]+/', trim($search));
+
+            $keywords = array_filter($keywords);
+
             $products = Item::query()
                 ->where('is_available', true)
                 ->where('stock', '>', 0)
-                ->where(function ($query) use ($search) {
-                    $query->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('description', 'like', '%' . $search . '%');
+                ->where(function ($query) use ($keywords) {
+                    foreach ($keywords as $keyword) {
+                        $query->where(function ($subQuery) use ($keyword) {
+                            $subQuery->where('name', 'like', '%' . $keyword . '%')
+                                ->orWhere('description', 'like', '%' . $keyword . '%');
+                        });
+                    }
                 })
                 ->get();
         }

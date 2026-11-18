@@ -65,7 +65,7 @@ export default function Menu({
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               placeholder="Cari nama kue atau produk..."
-              className="min-w-0 flex-1 bg-white px-5 py-3 text-base text-gray-900 placeholder:text-gray-500 outline-none"
+              className="min-w-0 flex-1 bg-white px-5 py-3 text-base text-black placeholder:text-black outline-none"
             />
 
             <button
@@ -102,70 +102,19 @@ export default function Menu({
           ))}
         </ul>
       </nav>
-
-      {search.trim() !== "" && (
-        <section className="mx-4 mt-8 md:mx-16">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">
-            Hasil pencarian: &quot;{search}&quot;
-          </h2>
-
-          {products.length === 0 ? (
-            <p className="text-gray-700">
-              Produk tidak ditemukan. Coba kata kunci lain.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {products.map((product) => (
-                <article
-                  key={product.id}
-                  className="overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-                >
-                  {product.image_url && (
-                    <img
-                      src={
-                        product.image_url.startsWith("http")
-                          ? product.image_url
-                          : product.image_url.startsWith("/")
-                            ? product.image_url
-                            : `/${product.image_url}`
-                      }
-                      alt={product.name}
-                      className="mb-3 h-40 w-full rounded-lg object-cover"
-                      onError={(event) => {
-                        console.error(
-                          "Gambar produk gagal dimuat:",
-                          event.currentTarget.src
-                        );
-                      }}
-                    />
-                  )}
-
-                  <h3 className="font-bold text-gray-900">
-                    {product.name}
-                  </h3>
-
-                  {product.description && (
-                    <p className="mt-1 text-sm text-gray-600">
-                      {product.description}
-                    </p>
-                  )}
-
-                  <p className="mt-2 font-semibold text-green-800">
-                    Rp {Number(product.price).toLocaleString("id-ID")}
-                  </p>
-
-                  <p className="text-sm text-gray-600">
-                    Stok: {product.stock} {product.unit}
-                  </p>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      <MainMenu kategori="Semua Produk" produk={produk} />
-
+      <MainMenu
+        kategori={
+          search.trim() !== ""
+            ? `Hasil pencarian: ${search}`
+            : "Semua Produk"
+        }
+        produk={search.trim() !== "" ? products : produk}
+        emptyMessage={
+          search.trim() !== ""
+            ? "Produk tidak ditemukan. Coba kata kunci lain."
+            : "Belum ada produk tersedia."
+        }
+      />
       <CustomerReview />
     </AppTemplate>
   );

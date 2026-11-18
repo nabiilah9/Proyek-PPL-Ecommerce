@@ -1,19 +1,34 @@
 import { Item } from "@/pages/Homepage";
+import { useEffect, useState } from "react";
 import { useForm } from "@inertiajs/react";
 
 interface MainProps {
   items: Item[];
 }
 
-function CartButton({ itemId }: { itemId: number }) {
+function CartButton({ itemId, stock }: { itemId: number; stock: number }) {
   const { post, processing } = useForm({
     item_id: itemId,
     quantity: 1,
   });
+  const [added, setAdded] = useState(false);
+
+  useEffect(() => {
+    if (!added) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setAdded(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [added]);
 
   const addToCart = () => {
     post(route("client.cart.add"), {
       preserveScroll: true,
+      onSuccess: () => {
+        setAdded(true);
+        window.dispatchEvent(new Event("cart-updated"));
+      },
     });
   };
 
@@ -21,11 +36,11 @@ function CartButton({ itemId }: { itemId: number }) {
     <button
       type="button"
       onClick={addToCart}
-      disabled={processing}
+      disabled={processing || added || stock < 1}
       title="Tambah ke keranjang"
       className="absolute bottom-2 right-2 bg-white text-black rounded-full w-8 h-8 flex items-center justify-center shadow hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
     >
-      {processing ? "…" : "+"}
+      {processing ? "…" : added ? "✓" : "+"}
     </button>
   );
 }
@@ -100,7 +115,7 @@ export default function Main({ items }: MainProps) {
                     : "url('/img/dadar-gulung.png')",
                 }}
               >
-                <CartButton itemId={item.id} />
+                <CartButton itemId={item.id} stock={item.stock} />
               </div>
             </div>
           );

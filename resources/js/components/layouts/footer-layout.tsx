@@ -42,7 +42,7 @@ export default function FooterLayout({ className = '', ...props }: FooterLayoutP
               <input
                 type="email"
                 placeholder="youremail@gmail.com"
-                className="h-full w-full rounded-4xl border border-gray-500 px-4 py-2 font-bold"
+                className="h-full w-full rounded-4xl border border-gray-500 bg-transparent px-4 py-2 font-bold text-white placeholder:text-gray-400"
                 maxLength={25}
               />
               <button

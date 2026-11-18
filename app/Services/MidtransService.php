@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Midtrans\Config;
 use Midtrans\Snap;
 use Midtrans\Transaction as MidtransTransaction;
+use RuntimeException;
 use Throwable;
 
 class MidtransService {
@@ -20,29 +21,74 @@ class MidtransService {
         Config::$is3ds        = true;
     }
 
+    public function configurationIssue(): ?string {
+        $serverKey = (string) config('services.midtrans.server_key');
+        $isProduction = (bool) config('services.midtrans.is_production');
+
+        if ($serverKey === '') {
+            return 'MIDTRANS_SERVER_KEY belum diisi.';
+        }
+
+        if (! $isProduction && ! str_starts_with($serverKey, 'SB-Mid-server-')) {
+            return 'MIDTRANS_SERVER_KEY bukan kunci sandbox. Gunakan kunci Sandbox yang berawalan SB-Mid-server-.';
+        }
+
+        if ($isProduction && str_starts_with($serverKey, 'SB-Mid-server-')) {
+            return 'MIDTRANS_SERVER_KEY sandbox dipakai saat MIDTRANS_IS_PRODUCTION=true.';
+        }
+
+        return null;
+    }
+
     public function getSnapToken(Transaction $transaction): string {
+        if ($transaction->midtrans_order_id) {
+            // Kasus DANA / e-wallet: settlement bisa masuk setelah pembeli
+            // kembali ke toko. Membatalkan order yang sudah lunas membuat
+            // Midtrans menolak (HTTP 4xx) dan halaman pembayaran error.
+            $remote = $this->remoteStatus($transaction->midtrans_order_id);
+
+            if ($remote) {
+                $remoteStatus = $remote->transaction_status ?? null;
+                $remoteFraud = $remote->fraud_status ?? null;
+
+                if (in_array($remoteStatus, ['settlement', 'capture'], true)) {
+                    $this->applyStatus($transaction, $remoteStatus, $remoteFraud, $remote->payment_type ?? null);
+
+                    throw new RuntimeException('Pembayaran sudah diterima. Status pesanan diperbarui menjadi lunas.');
+                }
+
+                if (in_array($remoteStatus, ['expire', 'cancel', 'deny', 'failure'], true)) {
+                    $this->applyStatus($transaction, $remoteStatus, $remoteFraud, $remote->payment_type ?? null);
+
+                    throw new RuntimeException('Pembayaran sebelumnya sudah berakhir. Muat ulang halaman untuk melihat status terbaru.');
+                }
+
+                // Masih pending: pakai ulang token lama agar tidak menumpuk order.
+                if ($remoteStatus === 'pending' && $transaction->snap_token) {
+                    return $transaction->snap_token;
+                }
+            }
+        }
+
         if ($transaction->snap_token || $transaction->midtrans_order_id) {
-            $oldSnapToken = $transaction->snap_token;
             $oldOrderId = $transaction->midtrans_order_id;
 
-            if ($oldOrderId) {
-                $transaction->update([
-                    'midtrans_order_id' => null,
-                    'snap_token' => null,
-                ]);
+            $transaction->update([
+                'midtrans_order_id' => null,
+                'snap_token' => null,
+            ]);
 
+            if ($oldOrderId) {
                 try {
                     MidtransTransaction::cancel($oldOrderId);
                 } catch (Throwable $exception) {
-                    $transaction->update([
-                        'midtrans_order_id' => $oldOrderId,
-                        'snap_token' => $oldSnapToken,
+                    // Order mungkin sudah expire/settle di sisi Midtrans.
+                    // Jangan gagalkan pembuatan token baru karenanya.
+                    Log::warning('Gagal membatalkan order Midtrans lama.', [
+                        'order_id' => $oldOrderId,
+                        'exception' => $exception->getMessage(),
                     ]);
-
-                    throw $exception;
                 }
-            } else {
-                $transaction->update(['snap_token' => null]);
             }
         }
 
@@ -60,10 +106,10 @@ class MidtransService {
                 'quantity' => 1,
                 'name'     => 'Pesanan #' . $transaction->id,
             ]],
-            'customer_details' => [
-                'first_name' => $user->name,
+            'customer_details' => array_filter([
+                'first_name' => $user->name ?: $user->username,
                 'email'      => $user->email,
-            ],
+            ]),
             'callbacks' => [
                 'finish' => route('client.orders.show', $transaction->id),
             ],
@@ -85,14 +131,9 @@ class MidtransService {
             return $transaction->fresh();
         }
 
-        try {
-            $status = MidtransTransaction::status($transaction->midtrans_order_id);
-        } catch (Throwable $exception) {
-            Log::warning('Gagal mengambil status transaksi dari Midtrans.', [
-                'transaction_id' => $transaction->id,
-                'exception' => $exception->getMessage(),
-            ]);
+        $status = $this->remoteStatus($transaction->midtrans_order_id);
 
+        if (! $status) {
             return $transaction->fresh();
         }
 
@@ -135,9 +176,46 @@ class MidtransService {
         );
     }
 
+    /**
+     * Ambil status transaksi langsung dari Midtrans (bukan dari database).
+     * Dipakai untuk menutup celah webhook yang tidak sampai ke server lokal.
+     */
+    public function remoteStatus(string $orderId): ?object {
+        $configurationIssue = $this->configurationIssue();
+
+        if ($configurationIssue) {
+            Log::error('Konfigurasi Midtrans tidak valid.', [
+                'order_id' => $orderId,
+                'issue' => $configurationIssue,
+            ]);
+
+            return null;
+        }
+
+        try {
+            return MidtransTransaction::status($orderId);
+        } catch (Throwable $exception) {
+            Log::warning('Gagal mengambil status Midtrans.', [
+                'order_id' => $orderId,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     public function cancelPending(Transaction $transaction): void {
         if ($transaction->midtrans_order_id) {
-            MidtransTransaction::cancel($transaction->midtrans_order_id);
+            try {
+                MidtransTransaction::cancel($transaction->midtrans_order_id);
+            } catch (Throwable $exception) {
+                // Pembatalan lokal tetap boleh dilakukan meskipun Midtrans
+                // offline, kredensial salah, atau order sudah tidak tersedia.
+                Log::warning('Gagal membatalkan transaksi Midtrans.', [
+                    'order_id' => $transaction->midtrans_order_id,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -161,8 +239,14 @@ class MidtransService {
                 $lockedTransaction->update([
                     'status' => 'paid',
                     'payment_type' => $paymentType,
-                    'paid_at' => now(),
+                    'paid_at' => $lockedTransaction->paid_at ?? now(),
                 ]);
+            } elseif ($status === 'pending' || ($status === 'capture' && $fraudStatus === 'challenge')) {
+                // DANA / e-wallet: pembeli sudah klik bayar, dana belum masuk.
+                // Simpan jenis pembayaran agar status di UI tidak kosong.
+                if ($paymentType && $lockedTransaction->payment_type !== $paymentType) {
+                    $lockedTransaction->update(['payment_type' => $paymentType]);
+                }
             } elseif (in_array($status, ['cancel', 'expire'], true)) {
                 $this->restoreStock($lockedTransaction);
                 $lockedTransaction->update(['status' => 'canceled']);

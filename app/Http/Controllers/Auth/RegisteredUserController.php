@@ -26,20 +26,51 @@ class RegisteredUserController extends Controller
     /**
      * Handle an incoming registration request.
      *
+     * PPL-01: pengguna mendaftar dengan username + password.
+     * Email bersifat opsional (boleh dikosongkan).
+     *
      * @throws \Illuminate\Validation\ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
-            'username' => 'required|string|max:255',
+        $request->merge([
+            'username' => trim((string) $request->input('username')),
+            'email' => $request->filled('email')
+                ? mb_strtolower(trim((string) $request->input('email')))
+                : null,
+        ]);
+
+        $validated = $request->validate([
+            'username' => [
+                'required',
+                'string',
+                'min:3',
+                'max:25',
+                'regex:/^[A-Za-z0-9._]+$/',
+                'unique:' . User::class . ',username',
+            ],
+            'email' => [
+                'nullable',
+                'string',
+                'lowercase',
+                'email',
+                'max:40',
+                'unique:' . User::class . ',email',
+            ],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'username.regex'  => 'Username hanya boleh berisi huruf, angka, titik, dan garis bawah.',
+            'username.unique' => 'Username sudah dipakai, pilih yang lain.',
+            'username.max'    => 'Username maksimal 25 karakter.',
+            'email.unique'    => 'Email sudah terdaftar.',
         ]);
 
         $user = User::create([
-            'email' => $request->email,
-            'username' => $request->username,
-            'password' => Hash::make($request->password),
+            'username' => $validated['username'],
+            'email' => $validated['email'] ?? null,
+            'password' => Hash::make($validated['password']),
+            'role' => 'CLIENT',
+            'status' => 'active',
         ]);
 
         event(new Registered($user));

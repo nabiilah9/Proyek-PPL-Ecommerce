@@ -22,7 +22,12 @@ export function AppShell({ children, variant = 'header' }: AppShellProps) {
   }
 
   return (
-    <SidebarProvider defaultOpen={isOpen} open={isOpen} onOpenChange={handleSidebarChange}>
+    <SidebarProvider
+      defaultOpen={isOpen}
+      open={isOpen}
+      onOpenChange={handleSidebarChange}
+      className="admin-layout"
+    >
       {children}
     </SidebarProvider>
   );

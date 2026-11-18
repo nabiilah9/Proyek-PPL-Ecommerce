@@ -86,6 +86,40 @@ test('paid orders cannot be canceled', function () {
         ->and($item->fresh()->stock)->toBe(3);
 });
 
+test('pending e-wallet orders can be canceled locally when Midtrans lookup fails', function () {
+    config([
+        'services.midtrans.is_production' => false,
+        'services.midtrans.server_key' => 'invalid-sandbox-key',
+    ]);
+
+    $user = User::factory()->create();
+    $item = Item::factory()->create([
+        'category_id' => Category::factory(),
+        'stock' => 3,
+    ]);
+    $transaction = Transaction::factory()->create([
+        'client_id' => $user->id,
+        'status' => 'pending',
+        'payment_method' => 'e-wallet',
+        'midtrans_order_id' => 'PPL-TEST-CANCEL',
+    ]);
+
+    TransactionDetail::create([
+        'transaction_id' => $transaction->id,
+        'item_id' => $item->id,
+        'quantity' => 2,
+        'price_at_time' => $item->price,
+    ]);
+
+    $this->actingAs($user)
+        ->from('/pesanan-saya')
+        ->post("/client/orders/{$transaction->id}/cancel")
+        ->assertRedirect('/pesanan-saya');
+
+    expect($transaction->fresh()->status)->toBe('canceled')
+        ->and($item->fresh()->stock)->toBe(5);
+});
+
 test('Midtrans settlement updates a pending order to paid', function () {
     $user = User::factory()->create();
     $transaction = Transaction::factory()->create([

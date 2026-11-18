@@ -46,6 +46,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'storeLocation' => fn () => \App\Models\StoreLocation::primary()?->toClientArray(),
+            'clientLocation' => fn () => $request->session()->get('client_location'),
             'ziggy' => fn (): array => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

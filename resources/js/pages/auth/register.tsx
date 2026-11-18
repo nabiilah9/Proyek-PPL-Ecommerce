@@ -11,7 +11,7 @@ import InputError from '@/components/elements/input-error';
 
 type RegisterForm = {
   username: string;
-  email: string;
+  email: string; // opsional
   password: string;
   password_confirmation: string;
 };
@@ -84,7 +84,7 @@ export default function Register() {
                     </label>
                     <Input id="username"
                       type="text"
-                      className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
+                      className="w-full text-black bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
                       placeholder="Username"
                       required
                       tabIndex={1} // Update tabIndex jika diperlukan
@@ -98,14 +98,13 @@ export default function Register() {
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
+                      Email <span className="text-gray-400 font-normal">(opsional)</span>
                     </label>
                     <Input
                       id="email"
                       type="email"
                       placeholder="email@example.com" // Ganti placeholder jika perlu
                       className="w-full bg-green-50 border-green-100 focus:border-[#51793E] focus:ring focus:ring-green-200 focus:ring-opacity-50"
-                      required
                       tabIndex={2} // Update tabIndex
                       value={data.email}
                       onChange={(e) => setData('email', e.target.value)}

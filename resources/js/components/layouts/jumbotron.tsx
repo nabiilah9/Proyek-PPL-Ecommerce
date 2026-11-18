@@ -87,7 +87,7 @@ function handleSearch(event: FormEvent<HTMLFormElement>) {
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
                   placeholder="e.g. klepon manis"
-                  className="h-full w-full rounded-4xl border border-gray-500 px-4 py-2 font-bold"
+                  className="h-full w-full rounded-4xl border border-gray-500 px-4 py-2 font-bold text-black"
                   maxLength={25}
               />
 

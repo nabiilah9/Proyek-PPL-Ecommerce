@@ -203,7 +203,7 @@ export default function ProductCreate() {
                   placeholder="Deskripsi singkat produk..."
                   value={data.description}
                   onChange={(e) => setData('description', e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm text-black shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-black dark:text-white"
                 />
                 {errors.description && <InputError id="description-error" message={errors.description} />}
               </div>

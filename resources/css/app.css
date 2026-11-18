@@ -82,6 +82,27 @@
     }
 }
 
+/* Warna kolom form hanya untuk panel admin; tidak memengaruhi halaman publik. */
+.admin-layout input:not([type='checkbox']):not([type='radio']),
+.admin-layout textarea,
+.admin-layout select {
+    background-color: #fff;
+    color: #111827;
+}
+
+.admin-layout [role='combobox'] {
+    background-color: #fff;
+    color: #111827;
+}
+
+.dark .admin-layout input:not([type='checkbox']):not([type='radio']),
+.dark .admin-layout textarea,
+.dark .admin-layout select,
+.dark .admin-layout [role='combobox'] {
+    background-color: #000;
+    color: #fff;
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -187,10 +208,35 @@
 */
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground;
+    }
+
+    /*
+      Jaring pengaman kontras: input/textarea/select tanpa utility warna
+      mewarisi `text-foreground`. Di dalam kartu putih atau panel gelap itu
+      bisa menyatu dengan latar kolom. Utility Tailwind (mis. `bg-white
+      text-gray-900`) tetap menang karena lapisan utilities lebih akhir.
+    */
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    textarea,
+    select {
+        color: #171717;
+        background-color: #ffffff;
+        caret-color: #171717;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: #737373;
+        opacity: 1;
+    }
+
+    select option {
+        color: #171717;
+        background-color: #ffffff;
     }
 }

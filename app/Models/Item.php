@@ -30,7 +30,7 @@ class Item extends Model {
     protected $fillable= [
         'category_id',
         'name', 'unit', 'price', 'stock',
-        'image_url', 'is_avaible', 'description', 'discount',
+        'image_url', 'is_available', 'description', 'discount',
         'expired_at'
     ];
 }

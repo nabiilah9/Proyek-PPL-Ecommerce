@@ -65,7 +65,7 @@ export default function Menu({
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               placeholder="Cari nama kue atau produk..."
-              className="min-w-0 flex-1 bg-white px-5 py-3 text-base text-gray-900 placeholder:text-gray-500 outline-none"
+              className="min-w-0 flex-1 bg-white px-5 py-3 text-base text-black placeholder:text-black outline-none"
             />
 
             <button

@@ -269,6 +269,9 @@ useEffect(() => {
             {},
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    window.location.reload();
+                },
                 onFinish: () => setCancellingOrderId(null),
             }
         );
@@ -763,7 +766,7 @@ useEffect(() => {
                                                         maxLength={1000}
                                                         rows={3}
                                                         placeholder="Tuliskan pengalaman Anda mengenai produk ini..."
-                                                        className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                        className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-black"
                                                     />
 
                                                     <p className="text-xs text-gray-500 text-right mt-1">
@@ -1058,6 +1061,14 @@ useEffect(() => {
                                                     >
                                                         Lihat Detail
                                                     </button>
+
+                                                    <Link
+                                                        href={`/client/orders/${transaction.id}/tracking`}
+                                                        className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-lg hover:bg-green-100"
+                                                    >
+                                                        <Truck size={16} />
+                                                        Lacak Paket
+                                                    </Link>
 
                                                     {transaction.status.toLowerCase() === "pending" && (
                                                         <>

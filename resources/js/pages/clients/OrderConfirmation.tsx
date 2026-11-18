@@ -95,6 +95,8 @@ export default function OrderConfirmation({
 }: Props) {
     const [isPaying, setIsPaying] = useState(false);
     const [snapReady, setSnapReady] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [pollNote, setPollNote] = useState<string | null>(null);
 
     // Mencegah request pembayaran ganda.
     const paymentLock = useRef(false);
@@ -119,6 +121,81 @@ export default function OrderConfirmation({
             mounted = false;
         };
     }, []);
+
+    /**
+     * Cek status sekali ke backend. Backend yang menanyakan Midtrans,
+     * jadi kunci rahasia tetap di server.
+     */
+    const checkStatus = async (): Promise<boolean> => {
+        try {
+            const response = await fetch(
+                `/client/orders/${transactionId}/status`,
+                {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                }
+            );
+
+            if (!response.ok) {
+                return false;
+            }
+
+            const data: {
+                status?: string;
+                configuration_issue?: string | null;
+            } = await response.json();
+
+            if (data.configuration_issue) {
+                setPollNote(data.configuration_issue);
+                return false;
+            }
+
+            if (data.status && data.status !== 'pending') {
+                router.reload();
+                return true;
+            }
+        } catch (error) {
+            console.error('Gagal memeriksa status pembayaran:', error);
+        }
+
+        return false;
+    };
+
+    /**
+     * DANA / e-wallet: settlement sering datang beberapa detik setelah
+     * pembeli kembali ke toko. Polling menutup jeda itu tanpa webhook.
+     */
+    const startPolling = (attempt = 0) => {
+        if (attempt >= 60) {
+            setPollNote(
+                'Status belum berubah. Tunggu sebentar lalu klik "Cek Status Pembayaran".'
+            );
+            return;
+        }
+
+        setPollNote('Menunggu konfirmasi pembayaran dari Midtrans...');
+
+        window.setTimeout(async () => {
+            const settled = await checkStatus();
+
+            if (!settled) {
+                startPolling(attempt + 1);
+            }
+        }, 5000);
+    };
+
+    const handleManualCheck = async () => {
+        setChecking(true);
+        const settled = await checkStatus();
+
+        if (!settled) {
+            setPollNote(
+                'Pembayaran belum tercatat. Kalau sudah bayar lewat DANA, tunggu beberapa detik lalu cek lagi.'
+            );
+        }
+
+        setChecking(false);
+    };
 
     const handlePay = async () => {
         // Jangan membuat transaksi atau membuka popup dua kali.
@@ -152,7 +229,18 @@ export default function OrderConfirmation({
             );
 
             if (!response.ok) {
-                throw new Error('Gagal membuat pembayaran.');
+                const problem: { message?: string; status?: string } = await response
+                    .json()
+                    .catch(() => ({}));
+
+                if (response.status === 409 && problem.status === 'paid') {
+                    router.reload();
+                    return;
+                }
+
+                throw new Error(
+                    problem.message ?? 'Gagal membuat pembayaran.'
+                );
             }
 
             const data: { snap_token: string } =
@@ -178,8 +266,12 @@ export default function OrderConfirmation({
                     paymentLock.current = false;
                     setIsPaying(false);
 
-                    // Status resmi tetap ditentukan backend/webhook.
-                    router.reload();
+                    void checkStatus().then((settled) => {
+                        if (!settled) {
+                            // Status resmi tetap ditentukan backend/webhook.
+                            startPolling();
+                        }
+                    });
                 },
 
                 onPending: () => {
@@ -187,7 +279,12 @@ export default function OrderConfirmation({
                     paymentLock.current = false;
                     setIsPaying(false);
 
-                    router.reload();
+                    void checkStatus().then((settled) => {
+                        if (!settled) {
+                            // DANA: dana belum masuk saat popup ditutup.
+                            startPolling();
+                        }
+                    });
                 },
 
                 onError: () => {
@@ -339,6 +436,36 @@ export default function OrderConfirmation({
                                     ? 'Memproses Pembayaran...'
                                     : 'Bayar Sekarang'}
                         </button>
+                    )}
+
+                    {needsPayment && (
+                        <div className="mt-3">
+                            <button
+                                type="button"
+                                onClick={handleManualCheck}
+                                disabled={checking}
+                                className="w-full border border-green-600 text-green-700 font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {checking
+                                    ? 'Memeriksa status...'
+                                    : 'Cek Status Pembayaran'}
+                            </button>
+
+                            {pollNote && (
+                                <p className="mt-2 text-xs text-gray-500">
+                                    {pollNote}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {!needsPayment && (
+                        <Link
+                            href={`/client/orders/${transactionId}/tracking`}
+                            className="mt-4 block w-full border border-green-600 text-green-700 font-semibold py-2 px-4 rounded-lg text-center"
+                        >
+                            Lacak Paket
+                        </Link>
                     )}
 
                     {/* Tombol navigasi */}

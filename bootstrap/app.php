@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->encryptCookies(except: ['appearance']);
         $middleware->validateCsrfTokens(except: ['midtrans/notification']);
+
+        // Alias middleware otorisasi berbasis peran (users.role).
+        $middleware->alias([
+            'role' => \App\Http\Middleware\EnsureRole::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
